@@ -1,0 +1,17 @@
+# export FRITZ_PASSWORD="(uFqe[Wg\6b\mUA[g}*0auiB].=]vqdb"
+# export FRITZ_USER="root"
+
+from fritzconnection import FritzConnection
+fc = FritzConnection(address='192.168.141.1')
+
+from fritzconnection.lib.fritzhosts import FritzHosts
+fh = FritzHosts(fc)
+
+state = fc.call_action("Hosts1", "GetHostNumberOfEntries")
+state = fc.call_action("Hosts1", "GetGenericHostEntry", NewIndex=0)
+state = fc.call_action("Hosts1", "GetGenericHostEntry", NewIndex=1)
+state = fc.call_action("Hosts1", "X_AVM-DE_GetHostListPath")
+
+fh.get_active_hosts()
+fh.get_hosts_attributes()
+

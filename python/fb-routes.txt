@@ -1,0 +1,15 @@
+### https://avm.de/fileadmin/user_upload/Global/Service/Schnittstellen/layer3forwardingSCPD.pdf
+
+# export FRITZ_PASSWORD="(uFqe[Wg\6b\mUA[g}*0auiB].=]vqdb"
+# export FRITZ_USER="root"
+
+from fritzconnection import FritzConnection
+
+fc = FritzConnection(address='192.168.141.1')
+state = fc.call_action("LANHostConfigManagement1", "GetIPRoutersList")
+
+fc.call_action("Layer3Forwarding1", "GetForwardNumberOfEntries")
+
+fc.call_action("Layer3Forwarding1", "GetGenericForwardingEntry", NewForwardingIndex=0 )
+
+

@@ -1,0 +1,4 @@
+fritzconnection[qr]
+pybird
+segno
+ipython
