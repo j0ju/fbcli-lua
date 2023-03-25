@@ -3,61 +3,95 @@
 -- get local path of script and take care of symlinks
 -- add it to package path
 local lfs = require("lfs")
-function base_dir(fn)
+local base_dir = function (fn)
   local cwd = lfs.currentdir()
   local s = {}
-  local tmpdir = cwd
+  local dir = cwd
   repeat
-    tmpdir, fn, _ = fn:match('(.-)([^\\/]-%.?([^%.\\/]*))$')
-    if tmpdir == "" then
-      tmpdir = cwd
+    dir, fn, _ = fn:match('(.-)([^\\/]-%.?([^%.\\/]*))$')
+    if dir == "" then
+      dir = cwd
     end
-    lfs.chdir(tmpdir)
-    tmpdir = lfs.currentdir()
+    lfs.chdir(dir)
+    dir = lfs.currentdir()
     s = lfs.symlinkattributes(fn)
     if s.target then
       fn = s.target
     end
   until s.target == nil
   lfs.chdir(cwd)
-  return tmpdir
+  return dir
 end
 package.path = base_dir(arg[0]) .. "/?.lua;" .. package.path
 
 
 -- local
 local CLI = require("CLI")
+local IP = require("ipaddr")
 local FB = require("fritzbox")
 require "dump"
 
 
--- defintion of cli arguemnts
+-- defintion of CLI functions
 FBcli = { route = {} }
 
 function FBcli.login(argv, i) 
   local fb = {
-    url = "http://fritz.box",
+    url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
     password = os.getenv("FRITZBOX_PASSWORD") or "",
     user = os.getenv("FRITZBOX_USER") or "",
   }
   CLI.parse_into_table(fb, argv, i)
-  fbhandle = FB.login(fb.user, fb.password, fb.url)
-  print("session", fbhandle.sid)
+  FBhandle = FB.login(fb.user, fb.password, fb.url)
+  --dump(FBhandle)
+  print(FBhandle.sid)
 end
 
-function FBcli.route.DEFAULT()
-  return FBcli.route.show()
-end
-function FBcli.route.add()
-  print("FBcli.route.add")
-end
-function FBcli.route.delete()
-  print("FBcli.route.delete")
-end
 function FBcli.route.show()
-  print("FBcli.route.show")
+  routes = FB.route.list(FBhandle)
+  for pfx, r in pairs(routes) do
+    if pfx:match("^.*/.*$") then
+      print(string.format("%s via %s name %s active %s", pfx, r.via, r.name, r.active))
+    end
+  end
+end
+FBcli.route.DEFAULT = FBcli.route.show
+FBcli.route.list = FBcli.route.show
+
+function FBcli.route.add(argv, i)
+  local r = {
+    prefix = argv[i] or "",
+    via = "",
+    name = "",
+    active = "1",
+  }
+  CLI.parse_into_table(r, argv, i)
+  dump(
+    FB.route.add(FBhandle, r)
+  )
+end
+FBcli.route.replace = FBcli.route.add
+
+function FBcli.route.delete(argv, i)
+  local r = {
+    prefix = argv[i] or "",
+    via = "",
+    name = "",
+    active = "",
+  }
+  CLI.parse_into_table(r, argv, i)
+  if r.name == "" then r.name = nil end
+  dump(
+    FB.route.delete(FBhandle, r.name or r.prefix, r.via)
+  )
 end
 
+
+-- set FritzBox session & CLI call
+FBhandle = {
+  url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
+  sid = os.getenv("FRITZBOX_SESSION") or "",
+}
 CLI.action(FBcli, arg)
 
 -- vim: ts=2 et sw=2 fdm=indent ft=lua
