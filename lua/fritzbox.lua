@@ -108,8 +108,8 @@ function fb.route.list(fbhandle)
   for _, fb_r in pairs(fb_routes.data.staticRoutes.route) do
     local cidr = IP.netmask2cidr(fb_r.netmask)
     local r = { 
-      prefix = fb_r.ipaddr .. "/" .. cidr,
-      via = fb_r.gateway,
+      prefix = IP.prefix(fb_r.ipaddr .. "/" .. cidr),
+      via = IP.address(fb_r.gateway),
       name = fb_r._node,
       active = fb_r.activated,
     }
@@ -124,8 +124,8 @@ function fb.route.list(fbhandle)
   fb_routes = fb.route.ipv6.list(fbhandle)
   for _, fb_r in pairs(fb_routes.data.staticRoutes) do
     local r = { 
-      prefix = fb_r.ipv6Address .. "/" .. fb_r.prefixLength,
-      via =  fb_r.gateway,
+      prefix = IP.prefix(fb_r.ipv6Address .. "/" .. fb_r.prefixLength),
+      via =  IP.address(fb_r.gateway),
       name = fb_r.id,
       active = fb_r.isActive,
     }
@@ -169,6 +169,33 @@ function fb.route.add(fbhandle, route)
   print( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, route.name or ""))
   if route.type == "ipv4+cidr" then
   -- IPv4
+    -- ensure we have only one active route for per prefix, remove all but 0 or 1 routes for that prefix
+    local current_routes = {}
+    repeat
+      current_routes = fb.route.list(fbhandle)
+      current_routes = fb.route.list_filter(current_routes, { prefix = route.prefix, name = route.name })
+      local l = table.len(current_routes)
+      if l > 1 then
+        if current_routes[route.prefix] then
+          fb.route.del(fbhandle, current_routes[route.prefix].name)
+        end
+      end
+    until l <= 1
+    -- add or update (by name) current prefix
+    if current_routes[route.prefix] then
+      if not (     ( current_routes[route.prefix].prefix == route.prefix )
+               and ( current_routes[route.prefix].via == route.via )
+               and ( current_routes[route.prefix].active == route.active ) ) then
+        route.name = current_routes[route.prefix].name
+        return fb.route.ipv4.set(fbhandle, route.prefix, route.via, route.active, route.name)
+      else
+        return true
+      end
+    else
+      return fb.route.ipv4.add(fbhandle, route.prefix, route.via, route.active)
+    end
+  elseif route.type == "ipv6+cidr" then
+  -- IPv6
     local current_routes = {}
     repeat
       current_routes = fb.route.list(fbhandle)
@@ -185,15 +212,14 @@ function fb.route.add(fbhandle, route)
                and ( current_routes[route.prefix].via == route.via )
                and ( current_routes[route.prefix].active == route.active ) ) then
         route.name = current_routes[route.prefix].name
-        return fb.route.ipv4.set(fbhandle, route.prefix, route.via, route.active, route.name)
+        return fb.route.ipv6.set(fbhandle, route.prefix, route.via, route.active, route.name)
       else
         return true
       end
     else
-      return fb.route.ipv4.add(fbhandle, route.prefix, route.via, route.active)
+      return fb.route.ipv6.add(fbhandle, route.prefix, route.via, route.active)
     end
   else 
-  -- TODO: IPv6
     print("E: fb.route.add - AF not supported, yet")
     dump(route)
   end
@@ -208,7 +234,7 @@ function table.len(t)
 end
 
 function fb.route.delete(fbhandle, name, via)
-  print(string.format("fb.route.delete(%s, %s)", name, via or ""))
+  print(string.format("I: fb.route.delete(%s, %s)", name, via or ""))
   local t, a, p = IP.type(name)
   -- IPv4
   if name:find("^route%d+") then
@@ -233,11 +259,6 @@ end
 
 function fb.route.ipv6.list(fbhandle)
   return fb_POST_json_data_lua(fbhandle, "static_IPv6_route_table")
-end
-
--- Adds routes, does not check for existing routes with same prefix
-function fb.route.ipv4.add(fbhandle, prefix, via, active)
-  return fb.route.ipv4.set(fbhandle, prefix, via, active)
 end
 
 -- Adds and update routes, does not check for existing routes with same prefix
@@ -278,14 +299,34 @@ function fb.route.ipv4.set(fbhandle, prefix, via, active, name)
 
   return fb_POST_json_data_lua(fbhandle, "new_static_route", args)
 end
+fb.route.ipv4.add = fb.route.ipv4.set
 
--- Removes a route - 
+-- Adds and update routes, does not check for existing routes with same prefix
+function fb.route.ipv6.set(fbhandle, prefix, via, active, name)
+  local active = (active or 1)
+  local name = (name or "")
+
+  print(string.format("I: fb.route.ipv6.set(%s, %s, %s, %s)", prefix, via, active, name))
+
+  -- api call to create a new route
+  local args = {
+    gateway = IP.address(via),
+    isActive = active,
+    route = name,
+    apply = "",
+  }
+  _, args.ipv6Address, args.prefixLength = IP.type(prefix)
+
+  return fb_POST_json_data_lua(fbhandle, "new_IPv6_static_route", args)
+end
+fb.route.ipv6.add = fb.route.ipv6.set
+
+-- Removes a IPv4 route - 
 --  - "name" can be "prefix" or "route name"
 function fb.route.ipv4.delete(fbhandle, name, via) 
   print(string.format("I: fb.route.ipv4.delete(%s, %s)", name, via or ""))
   local t, a, p = IP.type(name)
   local rs
-  -- IPv4
   if name:find("^route%d+") then
     local args = {
       id = name,
@@ -302,6 +343,35 @@ function fb.route.ipv4.delete(fbhandle, name, via)
       if l > 0 then
         if current_routes[prefix] then
           rs = fb.route.ipv4.delete(fbhandle, current_routes[prefix].name)
+        end
+      end
+    until l == 0
+    return (rs or true)
+  end
+end
+
+-- Removes a IPv6 route - 
+--  - "name" can be "prefix" or "route name"
+function fb.route.ipv6.delete(fbhandle, name, via) 
+  print(string.format("I: fb.route.ipv6.delete(%s, %s)", name, via or ""))
+  local t, a, p = IP.type(name)
+  local rs
+  if name:find("^ip6route%d+") then
+    local args = {
+      id = name,
+      delete = "",
+    }
+    return fb_POST_json_data_lua(fbhandle, "static_IPv6_route_table", args)
+  elseif (t or ""):find("^ipv6") then
+    local current_routes = {}
+    local prefix = name
+    repeat
+      current_routes = fb.route.list(fbhandle)
+      current_routes = fb.route.list_filter(current_routes, { prefix = name })
+      local l = table.len(current_routes)
+      if l > 0 then
+        if current_routes[prefix] then
+          rs = fb.route.ipv6.delete(fbhandle, current_routes[prefix].name)
         end
       end
     until l == 0

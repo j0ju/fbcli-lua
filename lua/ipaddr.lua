@@ -67,6 +67,94 @@ function ipaddr.cidr(str)
   return nil
 end
 
+-- helper: tries to parse a string into a table only containing octets + cidr
+--   in:  string
+--   out: {[1..8]=, cidr=}
+--        or nil on error
+local doctet_from_string = function(inp)
+  local inp = inp
+  local doctet = {}, o
+
+  local i, _, outp, cidr = inp:find('^(.+)/(%d+)$')
+  if not i then outp = inp end
+
+  -- start parsing from the beginning
+  o = 1
+  while not (outp == "") do
+    if o > 8 then
+      return nil
+    end
+    inp = outp
+    i, _, token, outp = inp:find('^(%x%x?%x?%x?):(.*)$')
+    --print(o, token, outp)
+    if i then
+      doctet[o] = tonumber("0x"..token)
+      o = o + 1
+    else
+      outp = inp
+      break
+    end
+  end
+
+  -- either we encountered an error or :: because of zero compression
+  -- continue parsing from the end of the address
+  -- if we find colliding doctet indexes, we have a faulty address
+  o = 8
+  while not (outp == "") do
+    inp = outp
+    i, _, outp, token = inp:find('^(.+):(%x%x?%x?%x?)$')
+    --print(o, token, outp)
+    if i then
+      if doctet[o] == nil then
+        doctet[o] = tonumber("0x"..token)
+      else
+        return nil
+      end
+      o = o - 1
+    else
+      outp = inp
+      break
+    end
+  end
+
+  if outp == ":" then
+    -- we came here by parsing from the end of the input 
+    -- ":" this is fine, zero compression
+  elseif not (outp == "") then
+    -- we came here by parsing from the beginning 
+    i, _, token = outp:find('^:?(%d+)$')
+    --print(o, token, outp)
+    if i then
+      if doctet[o] == nil then
+        doctet[o] = tonumber("0x"..token)
+      else
+        return nil
+      end
+    else
+      return nil
+    end
+  end
+
+  for o = 1, 8 do
+    if doctet[o] == nil then
+      doctet[o] = "0"
+    end
+  end
+  doctet.cidr = cidr
+  return doctet
+end
+
+local doctet_expandv6 = function(doctet) 
+  local str = ""
+  for o = 1,8 do
+    if not (str == "")  then
+      str = str .. ":"
+    end
+    str = str .. string.format("%x", doctet[o])
+  end
+  return str
+end
+
 function ipaddr.type(str)
   local i, _, addr = (str or ""):find('^(%d+[.]%d+[.]%d+[.]%d+)$')
   if i then
@@ -79,8 +167,19 @@ function ipaddr.type(str)
   i, _, addr, pfx = (str or ""):find('^(%d+[.]%d+[.]%d+[.]%d+)/(%d+[.]%d+[.]%d+[.]%d+)$')
   if i then
     pfx = ipaddr.netmask2cidr(pfx)
-    return "ipv4+prefix", addr, pfx
+    return "ipv4+cidr", addr, pfx
   end
+
+  local doctet = doctet_from_string(str)
+  if doctet then
+    addr = doctet_expandv6(doctet)
+    if doctet.cidr then
+      return "ipv6+cidr", addr, doctet.cidr
+    else
+      return "ipv6", addr, "128"
+    end
+  end
+
   return type(str)
 end
 
