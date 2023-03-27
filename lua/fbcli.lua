@@ -24,13 +24,11 @@ local base_dir = function (fn)
 end
 package.path = base_dir(arg[0]) .. "/?.lua;" .. package.path
 
-
 -- local
 local CLI = require("CLI")
 local IP = require("ipaddr")
 local FB = require("fritzbox")
 require "dump"
-
 
 -- defintion of CLI functions
 FBcli = { route = {} }
@@ -43,15 +41,19 @@ function FBcli.login(argv, i)
   }
   CLI.parse_into_table(fb, argv, i)
   FBhandle = FB.login(fb.user, fb.password, fb.url)
-  --dump(FBhandle)
   print(FBhandle.sid)
 end
 
 function FBcli.route.show()
-  routes = FB.route.list(FBhandle)
-  for pfx, r in pairs(routes) do
-    if pfx:match("^.*/.*$") then
-      print(string.format("%s via %s name %s active %s", pfx, r.via, r.name, r.active))
+  routes, err = FB.route.list(FBhandle)
+  if err then
+    pstderr(string.format("E: %s route show: %s ", arg[0], err.message))
+    os.exit(1)
+  else
+    for pfx, r in pairs(routes) do
+      if pfx:match("^.*/.*$") then
+        print(string.format("%s via %s name %s active %s", pfx, r.via, r.name, r.active))
+      end
     end
   end
 end
@@ -92,6 +94,7 @@ FBhandle = {
   url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
   sid = os.getenv("FRITZBOX_SESSION") or "",
 }
+--FB.verbose = false
 CLI.action(FBcli, arg)
 
 -- vim: ts=2 et sw=2 fdm=indent ft=lua

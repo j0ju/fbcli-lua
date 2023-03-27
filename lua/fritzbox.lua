@@ -11,6 +11,7 @@ local http = require("socket.http")
 local ltn12 = require("ltn12")
 
 local fb = { 
+  verbose = true,
   route = {
     ipv4 = {},
     ipv6 = {},
@@ -71,7 +72,10 @@ end
 
 -- Helper: 
 --   fetches a page of data.lua
-function fb_POST_json_data_lua(fbhandle, page, args)
+local fb_POST_json_data_lua = function(fbhandle, page, args)
+  if fb.verbose then
+    pstderr("I: fb_POST_json_data_lua(page = '".. page .."', [...])")
+  end
   if args == nil then
     args = {}
   end
@@ -85,8 +89,9 @@ function fb_POST_json_data_lua(fbhandle, page, args)
   --print(post_data)
 
   local resp = {}
+  local url = fbhandle.url .. "/data.lua"
   local b, code, resp_h, status = http.request {
-    url = fbhandle.url .. "/data.lua",
+    url = url,
     method = "POST",
     source = ltn12.source.string(post_data),
     headers = {
@@ -96,15 +101,31 @@ function fb_POST_json_data_lua(fbhandle, page, args)
     sink = ltn12.sink.table(resp)
   }
 
+  if fb.verbose then
+    pstderr("I: fb_POST_json_data_lua: HTTP status: ".. code)
+  end
+  error = nil
+  if not (code == 200) then
+    error = { code = code, message = string.format("HTTP call to %s (%s) unsuccessful %d. Check credentials!", url, page, code) }
+    pstderr("E: fb_POST_json_data_lua: ".. error.message)
+  end
+
   -- TODO: error handling on JSON
   --print (resp[1])
-  return JSON:decode(resp[1])
+  return JSON:decode(resp[1]), error
 end
 
 function fb.route.list(fbhandle)
+  if fb.verbose then
+    pstderr("I: fb.route.list()")
+  end
   local extraroutes = {}
   -- IPv4
-  local fb_routes = fb.route.ipv4.list(fbhandle)
+  local fb_routes, err = fb.route.ipv4.list(fbhandle)
+  if err then
+    return nil, err
+  end
+
   for _, fb_r in pairs(fb_routes.data.staticRoutes.route) do
     local cidr = IP.netmask2cidr(fb_r.netmask)
     local r = { 
@@ -121,7 +142,7 @@ function fb.route.list(fbhandle)
     extraroutes.via[r.prefix] = extraroutes[r.prefix]
   end
   -- IPv6
-  fb_routes = fb.route.ipv6.list(fbhandle)
+  fb_routes, e = fb.route.ipv6.list(fbhandle)
   for _, fb_r in pairs(fb_routes.data.staticRoutes) do
     local r = { 
       prefix = IP.prefix(fb_r.ipv6Address .. "/" .. fb_r.prefixLength),
@@ -137,7 +158,7 @@ function fb.route.list(fbhandle)
     extraroutes.via[r.prefix] = extraroutes[r.prefix]
   end
   --
-  return extraroutes
+  return extraroutes, nil
 end
 
 function fb.route.list_filter(in_routes, r)
@@ -166,7 +187,9 @@ end
 function fb.route.add(fbhandle, route)
   route.prefix = IP.prefix(route.prefix)
   route.type, _, _= IP.type(route.prefix)
-  print( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, route.name or ""))
+  if fb.verbose then
+    pstderr( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, route.name or ""))
+  end
   if route.type == "ipv4+cidr" then
   -- IPv4
     -- ensure we have only one active route for per prefix, remove all but 0 or 1 routes for that prefix
@@ -220,7 +243,7 @@ function fb.route.add(fbhandle, route)
       return fb.route.ipv6.add(fbhandle, route.prefix, route.via, route.active)
     end
   else 
-    print("E: fb.route.add - AF not supported, yet")
+    pstderr("E: fb.route.add - AF not supported, yet")
     dump(route)
   end
 end
@@ -234,7 +257,9 @@ function table.len(t)
 end
 
 function fb.route.delete(fbhandle, name, via)
-  print(string.format("I: fb.route.delete(%s, %s)", name, via or ""))
+  if fb.verbose then
+    pstderr(string.format("I: fb.route.delete(%s, %s)", name, via or ""))
+  end
   local t, a, p = IP.type(name)
   -- IPv4
   if name:find("^route%d+") then
@@ -247,17 +272,23 @@ function fb.route.delete(fbhandle, name, via)
   elseif (t or ""):find("^ipv6") then
     return fb.route.ipv6.delete(fbhandle, name, via)
   else
-    print("E: fb.route.del - address family not supported, yet")
+    pstderr("E: fb.route.del - address family not supported, yet")
     dump({ name = name, via = via})
   end
 end
 
 -- Lists routes, routes are in .data.staticRoutes.route
 function fb.route.ipv4.list(fbhandle)
+  if fb.verbose then
+    pstderr("I: fb.route.ipv4.list()")
+  end
   return fb_POST_json_data_lua(fbhandle, "static_route_table")
 end
 
 function fb.route.ipv6.list(fbhandle)
+  if fb.verbose then
+    pstderr("I: fb.route.ipv6.list()")
+  end
   return fb_POST_json_data_lua(fbhandle, "static_IPv6_route_table")
 end
 
@@ -266,7 +297,9 @@ function fb.route.ipv4.set(fbhandle, prefix, via, active, name)
   local active = (active or 1)
   local name = (name or "")
 
-  print(string.format("I: fb.route.ipv4.set(%s, %s, %s, %s)", prefix, via, active, name))
+  if fb.verbose then
+    pstderr(string.format("I: fb.route.ipv4.set(%s, %s, %s, %s)", prefix, via, active, name))
+  end
   -- split prefix in oktets and cidr
   local i, _, ip1, ip2, ip3, ip4, cidr = prefix:find('(%d+).(%d+).(%d+).(%d+)/(%d+)')
   if not i then
@@ -306,7 +339,9 @@ function fb.route.ipv6.set(fbhandle, prefix, via, active, name)
   local active = (active or 1)
   local name = (name or "")
 
-  print(string.format("I: fb.route.ipv6.set(%s, %s, %s, %s)", prefix, via, active, name))
+  if fb.verbose then
+    pstderr(string.format("I: fb.route.ipv6.set(%s, %s, %s, %s)", prefix, via, active, name))
+  end
 
   -- api call to create a new route
   local args = {
@@ -324,7 +359,9 @@ fb.route.ipv6.add = fb.route.ipv6.set
 -- Removes a IPv4 route - 
 --  - "name" can be "prefix" or "route name"
 function fb.route.ipv4.delete(fbhandle, name, via) 
-  print(string.format("I: fb.route.ipv4.delete(%s, %s)", name, via or ""))
+  if fb.verbose then
+    pstderr(string.format("I: fb.route.ipv4.delete(%s, %s)", name, via or ""))
+  end
   local t, a, p = IP.type(name)
   local rs
   if name:find("^route%d+") then
@@ -353,7 +390,9 @@ end
 -- Removes a IPv6 route - 
 --  - "name" can be "prefix" or "route name"
 function fb.route.ipv6.delete(fbhandle, name, via) 
-  print(string.format("I: fb.route.ipv6.delete(%s, %s)", name, via or ""))
+  if fb.verbose then
+    pstderr(string.format("I: fb.route.ipv6.delete(%s, %s)", name, via or ""))
+  end
   local t, a, p = IP.type(name)
   local rs
   if name:find("^ip6route%d+") then

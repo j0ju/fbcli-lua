@@ -70,6 +70,11 @@ function CLI.parse_into_table(table, argv, start)
   end
 end
 
+function pstderr(str)
+  io.stderr:write(str)
+  io.stderr:write("\n")
+end
+
 return CLI
 
 -- vim: ts=2 et sw=2 fdm=indent ft=lua
