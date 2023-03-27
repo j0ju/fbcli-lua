@@ -111,8 +111,11 @@ local fb_POST_json_data_lua = function(fbhandle, page, args)
   end
 
   -- TODO: error handling on JSON
-  --print (resp[1])
-  return JSON:decode(resp[1]), error
+  local body = ""
+  for _, v in pairs(resp) do
+    body = body .. v
+  end
+  return JSON:decode(body), error
 end
 
 function fb.route.list(fbhandle)
@@ -188,7 +191,7 @@ function fb.route.add(fbhandle, route)
   route.prefix = IP.prefix(route.prefix)
   route.type, _, _= IP.type(route.prefix)
   if fb.verbose then
-    pstderr( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, route.name or ""))
+    pstderr( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, (route.name or "")))
   end
   if route.type == "ipv4+cidr" then
   -- IPv4

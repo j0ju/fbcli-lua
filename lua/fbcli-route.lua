@@ -46,6 +46,25 @@ function route.delete(argv, i)
   )
 end
 
+function route.flush(argv, i)
+  repeat
+    routes, err = FB.route.list(FBhandle)
+    if err then
+      pstderr(string.format("E: %s route show: %s ", arg[0], err.message))
+      os.exit(1)
+    end
+    local v=nil
+    for pfx, r in pairs(routes) do
+      local type = IP.type(pfx)
+      if type:match("^ipv[46]") then
+        print("I: removing route for " .. pfx)
+        FB.route.delete(FBhandle, r.name)
+        break
+      end
+    end
+  until v==nil
+end
+
 return route
 
 -- vim: ts=2 et sw=2 fdm=indent ft=lua
