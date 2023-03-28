@@ -67,7 +67,14 @@ function fb.login(user, pw, url)
   x = XML.parse(table.concat(resp))
   t = XML.find_element(x, "SID")
 
-  return { url=url, user=user, sid=t[1], login_info=x }
+  if (not (t==nil)) and (code == 200) and (not (t[1]==nil)) and ((tonumber(t[1], 16) or 0) > 0) then
+    return { url=url, user=user, sid=t[1], login_info=x }, nil
+  end
+  local blocktime = XML.find_element(x, "BlockTime")
+  return nil, {
+    errmsg = string.format("could not get a valid session Id (HTTP status: %d, SID: %s, blocktime: %s seconds)", code, t[1] or "", blocktime[1] or "(unknown)"),
+    exitcode = 1
+  }
 end
 
 -- Helper: 

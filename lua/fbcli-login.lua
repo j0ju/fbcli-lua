@@ -6,8 +6,13 @@ function fbcli_login(argv, i)
     password = os.getenv("FRITZBOX_PASSWORD") or "",
     user = os.getenv("FRITZBOX_USER") or "",
   }
-  CLI.parse_into_table(fb, argv, i)
-  FBhandle = FB.login(fb.user, fb.password, fb.url)
+  local _, err = CLI.parse_into_table(fb, argv, i)
+  die_on_err(err)
+
+  FBhandle, err = FB.login(fb.user, fb.password, fb.url)
+  die_on_err(err)
+
+  if FBcli.verbose then dump(FBhandle) end
   print(FBhandle.sid)
 end
 return fbcli_login
