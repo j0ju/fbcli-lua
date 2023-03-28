@@ -86,9 +86,9 @@ local doctet_from_string = function(inp)
     end
     inp = outp
     i, _, token, outp = inp:find('^(%x%x?%x?%x?):(.*)$')
-    --print(o, token, outp)
+    --print(o, i, token, outp)
     if i then
-      doctet[o] = tonumber("0x"..token)
+      doctet[o] = tonumber(token, 16)
       o = o + 1
     else
       outp = inp
@@ -103,10 +103,10 @@ local doctet_from_string = function(inp)
   while not (outp == "") do
     inp = outp
     i, _, outp, token = inp:find('^(.+):(%x%x?%x?%x?)$')
-    --print(o, token, outp)
+    --print(o, i, token, outp)
     if i then
       if doctet[o] == nil then
-        doctet[o] = tonumber("0x"..token)
+        doctet[o] = tonumber(token, 16)
       else
         return nil
       end
@@ -122,11 +122,11 @@ local doctet_from_string = function(inp)
     -- ":" this is fine, zero compression
   elseif not (outp == "") then
     -- we came here by parsing from the beginning
-    i, _, token = outp:find('^:?(%d+)$')
-    --print(o, token, outp)
+    i, _, token = outp:find('^:?(%x%x?%x?%x?)$')
+    --print(o, i, token, outp)
     if i then
       if doctet[o] == nil then
-        doctet[o] = tonumber("0x"..token)
+        doctet[o] = tonumber(token, 16)
       else
         return nil
       end
