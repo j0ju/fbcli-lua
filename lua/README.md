@@ -6,14 +6,16 @@
  * lfs - LuaFilesystem
  * luaposix
  * lua-md5
+ * ip CLI utility from iproute2 suite (the busybox variant does not work in all cases)
 
-Q: Why lua 5.1? - This is used on OpenWrt boxes.
+Q: Why lua 5.1?
+A: - This is per default installed on OpenWrt boxes.
 
 ### OpenWrt
 
 Tested with OpenWrt 21.02 and 22.03
 ```
-opkg install lua-md5 luafilesystem luaposix
+opkg install lua-md5 luafilesystem luaposix ip-full
 ```
 
 ### Debian/Ubuntu
@@ -76,8 +78,10 @@ This deletes all extra routes from the FritzBox.
 
  * v4via
  * v6via
+ * table
  * follow
-
+ * pollms
+ * ip
 
 ## Examples
 

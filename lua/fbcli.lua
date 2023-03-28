@@ -27,9 +27,48 @@ FB = require("fritzbox")
 require "dump"
 
 -- defintion of CLI functions
-FBcli = {
-  --verbose = true,
-}
+FBcli = { verbose = false, }
+FBcli.help = function()
+  local _, scriptname = arg[0]:match('(.-)([^\\/]-%.?([^%.\\/]*))$')
+  pstderr("Usage: ")
+  pstderr("  ".. scriptname .." [obj] <action?> <options*>")
+  pstderr("")
+  pstderr([[
+  * login       - gets session id from FritzBox and outputs it to STDOUT
+    - url         - see also environment FRITZBOX_URL
+    - user        - see also environment FRITZBOX_USER
+    - password    - see also environment FRITZBOX_PASSWORD
+
+  Objects and actions below need a valid session id in FRITZBOX_SESSION
+  for FRITZBOX_URL.
+
+  * route show  - shows all extra routes
+  * route add   - adds an extra route, it ensure that we have only one route
+                  for a prefix
+    - prefix
+    - via
+    - active      - flag determining if the route is "active", (default 1)
+
+  * route del   - deletes all extra route for prefix
+    - prefix
+
+  * route flush - remove all extra routes
+
+  * route sync  - sync extra routes on FritzBox with routes in routing table
+    - table       - name of the local routing table to sync with
+                    (default: main)
+    - v4via       - where should the FritzBox should route to for extra
+                    routes (v4).
+                    IPv4 routes are only synced if this is set
+    - v6via       - ... the same for (v6) -
+    - follow      - do a continous sync
+    - ip          - full path of "ip" binary (default: /sbin/ip)
+    - pollms      - milliseconds to wait for input, before act on another
+                    batch (default: 5000ms)
+  ]])
+  os.exit(1)
+end
+FBcli.DEFAULT = FBcli.help
 FBcli.login = require ("fbcli-login")
 FBcli.route = require ("fbcli-route")
 FBcli.route.sync = require ("fbcli-route-sync")
@@ -55,7 +94,13 @@ FBhandle = {
   url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
   sid = os.getenv("FRITZBOX_SESSION") or "",
 }
+
 FB.verbose = false
-CLI.action(FBcli, arg)
+FBcli.verbose = false
+
+local rs, err = CLI.action(FBcli, arg)
+die_on_err(err)
+
+os.exit(0)
 
 -- vim: ts=2 et sw=2 fdm=indent ft=lua

@@ -6,7 +6,7 @@ local CLI = {
 require "table"
 
 -- helper: for selecting objects or actions from commandline out of an table
-function CLI.select(table, opin)
+local CLI_select = function(table, opin)
   local op
   for k,_ in pairs(table) do
     local m, _ = k:gsub('(.)', '%1?')
@@ -31,8 +31,7 @@ function CLI.action(table, argv, start)
   local obj = nil
   local i = start
   while argv[i] do
-    obj = CLI.select(table, argv[i])
-    --print(i, argv[i], obj)
+    obj = CLI_select(table, argv[i])
     if type(obj) == "table" then
       table = obj
     elseif type(obj) == "function" then
@@ -47,12 +46,12 @@ function CLI.action(table, argv, start)
       return obj["DEFAULT"]()
     end
   end
-  print("E: no action helper found")
-  return nil
+  local error = {
+    errmsg = string.format("no CLI function implemented for ${%d} = '%s'", i, argv[i] or ""),
+    exitcode = 1
+  }
+  return nil, error
 end
-
--- iterates of "argv", beginning with element "start"
---
 
 local toboolean_map = {
   ["yes"]     = true,
@@ -73,6 +72,8 @@ function toboolean(str)
   return toboolean_map[str]
 end
 
+-- iterates of "argv", beginning with element "start"
+--
 function CLI.parse_into_table(table, argv, start)
   if start == nil then start = 1 end
   local i = start
