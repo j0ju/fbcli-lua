@@ -10,7 +10,7 @@ local io = require("io")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 
-local fb = { 
+local fb = {
   verbose = true,
   route = {
     ipv4 = {},
@@ -18,7 +18,7 @@ local fb = {
   }
 }
 
--- Helper: 
+-- Helper:
 --   for login, generates response on challange for authentication
 function fb_response(ch, pw)
   local pre = ch .. "-" .. pw
@@ -31,10 +31,10 @@ function fb_response(ch, pw)
   return resp
 end
 
-function fb.login(user, pw, url) 
+function fb.login(user, pw, url)
   local url = url
   if url == nil then
-    url = "http://fritz.box" 
+    url = "http://fritz.box"
   end
   -- TODO: error handling on HTTP
   -- Fetch login page and challenge
@@ -63,7 +63,7 @@ function fb.login(user, pw, url)
     },
     sink = ltn12.sink.table(resp)
   }
-  
+
   x = XML.parse(table.concat(resp))
   t = XML.find_element(x, "SID")
 
@@ -77,7 +77,7 @@ function fb.login(user, pw, url)
   }
 end
 
--- Helper: 
+-- Helper:
 --   fetches a page of data.lua
 local fb_POST_json_data_lua = function(fbhandle, page, args)
   if fb.verbose then
@@ -138,7 +138,7 @@ function fb.route.list(fbhandle)
 
   for _, fb_r in pairs(fb_routes.data.staticRoutes.route) do
     local cidr = IP.netmask2cidr(fb_r.netmask)
-    local r = { 
+    local r = {
       prefix = IP.prefix(fb_r.ipaddr .. "/" .. cidr),
       via = IP.address(fb_r.gateway),
       name = fb_r._node,
@@ -154,7 +154,7 @@ function fb.route.list(fbhandle)
   -- IPv6
   fb_routes, e = fb.route.ipv6.list(fbhandle)
   for _, fb_r in pairs(fb_routes.data.staticRoutes) do
-    local r = { 
+    local r = {
       prefix = IP.prefix(fb_r.ipv6Address .. "/" .. fb_r.prefixLength),
       via =  IP.address(fb_r.gateway),
       name = fb_r.id,
@@ -252,7 +252,7 @@ function fb.route.add(fbhandle, route)
     else
       return fb.route.ipv6.add(fbhandle, route.prefix, route.via, route.active)
     end
-  else 
+  else
     pstderr("E: fb.route.add - AF not supported, yet")
     dump(route)
   end
@@ -263,7 +263,7 @@ function table.len(t)
   for k, _ in pairs(t) do
     l = l + 1
   end
-  return l 
+  return l
 end
 
 function fb.route.delete(fbhandle, name, via)
@@ -315,7 +315,7 @@ function fb.route.ipv4.set(fbhandle, prefix, via, active, name)
   if not i then
     return nil
   end
-  
+
   -- convert cidr to netmask
   local netmask=IP.cidr2netmask(cidr)
   -- netmask to oktets
@@ -323,7 +323,7 @@ function fb.route.ipv4.set(fbhandle, prefix, via, active, name)
   if not i then
     return nil
   end
-  
+
   -- via to oktets
   local i, _ , via1, via2, via3, via4 = via:find('(%d+).(%d+).(%d+).(%d+)')
   if not i then
@@ -366,9 +366,9 @@ function fb.route.ipv6.set(fbhandle, prefix, via, active, name)
 end
 fb.route.ipv6.add = fb.route.ipv6.set
 
--- Removes a IPv4 route - 
+-- Removes a IPv4 route -
 --  - "name" can be "prefix" or "route name"
-function fb.route.ipv4.delete(fbhandle, name, via) 
+function fb.route.ipv4.delete(fbhandle, name, via)
   if fb.verbose then
     pstderr(string.format("I: fb.route.ipv4.delete(%s, %s)", name, via or ""))
   end
@@ -397,9 +397,9 @@ function fb.route.ipv4.delete(fbhandle, name, via)
   end
 end
 
--- Removes a IPv6 route - 
+-- Removes a IPv6 route -
 --  - "name" can be "prefix" or "route name"
-function fb.route.ipv6.delete(fbhandle, name, via) 
+function fb.route.ipv6.delete(fbhandle, name, via)
   if fb.verbose then
     pstderr(string.format("I: fb.route.ipv6.delete(%s, %s)", name, via or ""))
   end

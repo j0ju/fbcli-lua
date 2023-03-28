@@ -2,7 +2,7 @@
 --
 -- Taken and inspired by: https://github.com/tiye/json-lua
 --
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
 -- Simple JSON encoding and decoding in pure Lua.
 --
@@ -123,11 +123,11 @@ local OBJDEF = {
 --            :
 --
 --          for i, photo in ipairs(photosToProcess) do
---               :             
---               :             
+--               :
+--               :
 --               local data = JSON:decode(someJsonText, { photo = photo })
---               :             
---               :             
+--               :
+--               :
 --          end
 --
 --
@@ -205,12 +205,12 @@ local OBJDEF = {
 --           indent         = "   ",
 --           align_keys     = false,
 --           array_newline  = false,
---  
+--
 --           -- other output-related options
 --           null           = "\0",   -- see "ENCODING JSON NULL VALUES" below
 --           stringsAreUtf8 = false,  -- see "HANDLING UNICODE LINE AND PARAGRAPH SEPARATORS FOR JAVA" below
 --       }
---  
+--
 --       json_string = JSON:encode(mytable, etc, encode_options)
 --
 --
@@ -289,9 +289,9 @@ local OBJDEF = {
 --   An example of setting align_keys to true:
 --
 --     JSON:encode_pretty(data, nil, { pretty = true, indent = "  ", align_keys = true })
---  
+--
 --   produces:
---   
+--
 --      {
 --           "city": "Kyoto",
 --        "climate": {
@@ -325,7 +325,7 @@ local OBJDEF = {
 --   when non-positive numeric keys exist), numeric keys are converted to
 --   strings.
 --
---   For example, 
+--   For example,
 --     JSON:encode({ "one", "two", "three", SOMESTRING = "some string" }))
 --   produces the JSON object
 --     {"1":"one","2":"two","3":"three","SOMESTRING":"some string"}
@@ -344,7 +344,7 @@ local OBJDEF = {
 --
 --   In order to actually produce
 --      {"username":"admin", "password":null}
---   one can include a string value for a "null" field in the options table passed to encode().... 
+--   one can include a string value for a "null" field in the options table passed to encode()....
 --   any Lua table entry with that value becomes null in the JSON output:
 --      JSON:encode({ username = "admin", password = "xyzzy" }, nil, { null = "xyzzy" })
 --   produces
@@ -371,15 +371,15 @@ local OBJDEF = {
 --
 --   Without special handling, numbers in JSON can lose precision in Lua.
 --   For example:
---   
+--
 --      T = JSON:decode('{  "small":12345, "big":12345678901234567890123456789, "precise":9876.67890123456789012345  }')
 --
 --      print("small:   ",  type(T.small),    T.small)
 --      print("big:     ",  type(T.big),      T.big)
 --      print("precise: ",  type(T.precise),  T.precise)
---   
+--
 --   produces
---   
+--
 --      small:          number  12345
 --      big:            number  1.2345678901235e+28
 --      precise:        number  9876.6789012346
@@ -389,9 +389,9 @@ local OBJDEF = {
 --   This package offers ways to try to handle this better (for some definitions of "better")...
 --
 --   The most precise method is by setting the global:
---   
+--
 --      JSON.decodeNumbersAsObjects = true
---   
+--
 --   When this is set, numeric JSON data is encoded into Lua in a form that preserves the exact
 --   JSON numeric presentation when re-encoded back out to JSON, or accessed in Lua as a string.
 --
@@ -403,19 +403,19 @@ local OBJDEF = {
 --   Consider the example above, with this option turned on:
 --
 --      JSON.decodeNumbersAsObjects = true
---      
+--
 --      T = JSON:decode('{  "small":12345, "big":12345678901234567890123456789, "precise":9876.67890123456789012345  }')
 --
 --      print("small:   ",  type(T.small),    T.small)
 --      print("big:     ",  type(T.big),      T.big)
 --      print("precise: ",  type(T.precise),  T.precise)
---   
+--
 --   This now produces:
---   
+--
 --      small:          table   12345
 --      big:            table   12345678901234567890123456789
 --      precise:        table   9876.67890123456789012345
---   
+--
 --   However, within Lua you can still use the values (e.g. T.precise in the example above) in numeric
 --   contexts. In such cases you'll get the possibly-imprecise numeric version, but in string contexts
 --   and when the data finds its way to this package's encode() function, the original full-precision
@@ -434,7 +434,7 @@ local OBJDEF = {
 --
 --   This produces:
 --
---      { 
+--      {
 --         "precise": 123456789123456789.123456789123456789,
 --         "imprecise": 1.2345678912346e+17
 --      }
@@ -445,7 +445,7 @@ local OBJDEF = {
 --   the exact string representation of the number instead of the number itself.
 --   This approach might be useful when the numbers are merely some kind of opaque
 --   object identifier and you want to work with them in Lua as strings anyway.
---   
+--
 --   This approach is enabled by setting
 --
 --      JSON.decodeIntegerStringificationLength = 10
@@ -455,7 +455,7 @@ local OBJDEF = {
 --   Consider our previous example with this option set to 10:
 --
 --      JSON.decodeIntegerStringificationLength = 10
---      
+--
 --      T = JSON:decode('{  "small":12345, "big":12345678901234567890123456789, "precise":9876.67890123456789012345  }')
 --
 --      print("small:   ",  type(T.small),    T.small)
@@ -498,7 +498,7 @@ local OBJDEF = {
 --      JSON.decodeDecimalStringificationLength =  5
 --
 --      T = JSON:decode('{  "small":12345, "big":12345678901234567890123456789, "precise":9876.67890123456789012345  }')
---      
+--
 --      print("small:   ",  type(T.small),    T.small)
 --      print("big:     ",  type(T.big),      T.big)
 --      print("precise: ",  type(T.precise),  T.precise)
@@ -607,7 +607,7 @@ function OBJDEF:forceNumber(item)
       return tonumber(item)
    end
 end
-   
+
 
 local function unicode_codepoint_as_utf8(codepoint)
    --
@@ -757,7 +757,7 @@ local function grok_number(self, text, start, options)
 
        or
 
-      (options.decodeDecimalStringificationLength 
+      (options.decodeDecimalStringificationLength
        and
        (decimal_part:len() >= options.decodeDecimalStringificationLength or exponent_part:len() > 0))
    then
@@ -1463,7 +1463,7 @@ return OBJDEF:new()
 --
 
 --   20160916.19   Fixed the isNumber.__index assignment (thanks to Jack Taylor)
---   
+--
 --   20160730.18   Added JSON:forceString() and JSON:forceNumber()
 --
 --   20160728.17   Added concatenation to the metatable for JSON:asNumber()
@@ -1531,7 +1531,7 @@ return OBJDEF:new()
 --
 --                 To maintain the prior throw-an-error semantics, set
 --                      JSON.noKeyConversion = true
---                 
+--
 --   20131004.7    Release under a Creative Commons CC-BY license, which I should have done from day one, sorry.
 --
 --   20130120.6    Comment update: added a link to the specific page on my blog where this code can

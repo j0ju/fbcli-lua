@@ -1,6 +1,6 @@
 #!/usr/bin/env lua5.1
 
-function fbcli_login(argv, i) 
+function fbcli_login(argv, i)
   local fb = {
     url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
     password = os.getenv("FRITZBOX_PASSWORD") or "",

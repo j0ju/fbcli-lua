@@ -118,10 +118,10 @@ local doctet_from_string = function(inp)
   end
 
   if outp == ":" then
-    -- we came here by parsing from the end of the input 
+    -- we came here by parsing from the end of the input
     -- ":" this is fine, zero compression
   elseif not (outp == "") then
-    -- we came here by parsing from the beginning 
+    -- we came here by parsing from the beginning
     i, _, token = outp:find('^:?(%d+)$')
     --print(o, token, outp)
     if i then
@@ -144,7 +144,7 @@ local doctet_from_string = function(inp)
   return doctet
 end
 
-local doctet_expandv6 = function(doctet) 
+local doctet_expandv6 = function(doctet)
   local str = ""
   for o = 1,8 do
     if not (str == "")  then

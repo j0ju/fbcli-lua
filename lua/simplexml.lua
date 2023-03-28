@@ -4,14 +4,14 @@
 
 local sxml = {}
 
-function sxml_parseargs(s)
+local sxml_parseargs = function(s)
   local arg = {}
   string.gsub(s, "([%-%w]+)=([\"'])(.-)%2", function (w, _, a)
     arg[w] = a
   end)
   return arg
 end
-    
+
 function sxml.parse(s)
   local stack = {}
   local top = {}
@@ -55,7 +55,7 @@ end
 
 function sxml.find_element(xmltree, name)
   if xmltree.label and xmltree.label == name then
-    return xmltree      
+    return xmltree
   end
   if xmltree == nil then
   elseif type(xmltree) == "string" then

@@ -57,7 +57,7 @@ function route.flush(argv, i)
     for pfx, r in pairs(routes) do
       local type = IP.type(pfx)
       if type:match("^ipv[46]") then
-        print("I: removing route for " .. pfx)
+        print("I: removing route for " .. pfx .. " by name " .. r.name)
         FB.route.delete(FBhandle, r.name)
         break
       end

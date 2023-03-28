@@ -3,7 +3,7 @@
 local unistd = require('posix.unistd')
 local posix = require('posix')
 
--- TODO: 
+-- TODO:
 --  * signal handling
 --  * cleanup
 local parse_ip_route = function(line)
@@ -35,11 +35,13 @@ end
 
 local route_queue_process = function(q)
   print("I: route_queue_process()")
+  dump(q)
   for pfx, r in pairs(q) do
-    print("Q: "..pfx)
+    print("deQ: "..pfx)
     if r.op == "add" then
-      FB.route.add(FBhandle, r)
+      local rs = FB.route.add(FBhandle, r)
     elseif r.op == "del" then
+      -- TODO
     end
     q[pfx]=nil
   end
@@ -56,8 +58,10 @@ local fbcli_route_sync = function(argv, i)
     table = "",
     v4via = "",
     v6via = "",
-    follow = false,  -- if set do continous sync
-    pollms = "3000", -- milliseconds to wait for pools, input and bursts
+    follow = false,  -- if set do continueuos sync
+    pollms = 5000, -- milliseconds to wait for pools, input and bursts
+    allow = {},
+    deny = {},
   }
   CLI.parse_into_table(args, argv, i)
   args.pollms = tonumber(args.pollms) -- ensure this is a number
@@ -136,6 +140,14 @@ local fbcli_route_sync = function(argv, i)
     local type, line = nil
 
     -- wait for input from child
+    -- Ideas & Assumptions
+    --  * most route changes come in bursts
+    --  * as long we have input on STDIN (ip route monitor),
+    --    put all new route events in a q(ueue) indexed by prefix
+    --  * if we have at one time no input, (events == 0 after the poll) process the queue
+    --  ==> this way we have on multiple event changes for the same prefix, the latest route in queue per prefix
+    --  ==> if we get only a small number of route change events, this works, too
+    --  TODO: relogin on credential fails
     local events, errmsg, errno = posix.poll(poll_fds, args.pollms)
     if events == nil then
       pstderr(string.format("E: fbcli_route_sync: cannot poll from pipe: %s monitor route: %s", args.ip, errmsg))
@@ -179,13 +191,14 @@ local fbcli_route_sync = function(argv, i)
             -- augment some attributes of routes in FritzBoxes and enqueue
             r.name = ""
             r.active = 1
+            print("enQ: "..r.prefix)
             q[r.prefix] = r
           end
         end
       end
     end
   until false
-  -- tail processing of queued routes  
+  -- tail processing of queued routes
   route_queue_process(q)
 end
 

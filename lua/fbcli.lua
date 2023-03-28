@@ -27,17 +27,35 @@ FB = require("fritzbox")
 require "dump"
 
 -- defintion of CLI functions
-FBcli = { verbose = true, }
+FBcli = {
+  --verbose = true,
+}
 FBcli.login = require ("fbcli-login")
 FBcli.route = require ("fbcli-route")
 FBcli.route.sync = require ("fbcli-route-sync")
+
+
+function FBcli.testcli(argv, i)
+  -- CLI Parse
+  local args = {
+    string = "string",
+    bool = false,
+    number = 5000,
+    table = {},
+  }
+  local _, err = CLI.parse_into_table(args, argv, i)
+  die_on_err(err)
+
+  dump(args)
+end
+
 
 -- set FritzBox session & CLI call
 FBhandle = {
   url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
   sid = os.getenv("FRITZBOX_SESSION") or "",
 }
---FB.verbose = false
+FB.verbose = false
 CLI.action(FBcli, arg)
 
 -- vim: ts=2 et sw=2 fdm=indent ft=lua
