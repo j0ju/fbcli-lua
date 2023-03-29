@@ -207,7 +207,7 @@ function fb.route.add(fbhandle, route)
     repeat
       current_routes = fb.route.list(fbhandle)
       current_routes = fb.route.list_filter(current_routes, { prefix = route.prefix, name = route.name })
-      local l = table.len(current_routes)
+      local l = table.size(current_routes)
       if l > 1 then
         if current_routes[route.prefix] then
           fb.route.del(fbhandle, current_routes[route.prefix].name)
@@ -233,7 +233,7 @@ function fb.route.add(fbhandle, route)
     repeat
       current_routes = fb.route.list(fbhandle)
       current_routes = fb.route.list_filter(current_routes, { prefix = route.prefix, name = route.name })
-      local l = table.len(current_routes)
+      local l = table.size(current_routes)
       if l > 1 then
         if current_routes[route.prefix] then
           fb.route.del(fbhandle, current_routes[route.prefix].name)
@@ -258,7 +258,7 @@ function fb.route.add(fbhandle, route)
   end
 end
 
-function table.len(t)
+function table.size(t)
   local l=0
   for k, _ in pairs(t) do
     l = l + 1
@@ -386,7 +386,7 @@ function fb.route.ipv4.delete(fbhandle, name, via)
     repeat
       current_routes = fb.route.list(fbhandle)
       current_routes = fb.route.list_filter(current_routes, { prefix = name })
-      local l = table.len(current_routes)
+      local l = table.size(current_routes)
       if l > 0 then
         if current_routes[prefix] then
           rs = fb.route.ipv4.delete(fbhandle, current_routes[prefix].name)
@@ -417,7 +417,7 @@ function fb.route.ipv6.delete(fbhandle, name, via)
     repeat
       current_routes = fb.route.list(fbhandle)
       current_routes = fb.route.list_filter(current_routes, { prefix = name })
-      local l = table.len(current_routes)
+      local l = table.size(current_routes)
       if l > 0 then
         if current_routes[prefix] then
           rs = fb.route.ipv6.delete(fbhandle, current_routes[prefix].name)

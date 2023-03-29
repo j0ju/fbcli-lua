@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 
--- http://lua-users.org/wiki/DataDumper
+-- taken and inspired by http://lua-users.org/wiki/DataDumper
 --[[ DataDumper.lua
 Copyright (c) 2007 Olivetti-Engineering SA
 

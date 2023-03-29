@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/bin/env lua5.1
 
 -- taken and inspired by http://lua-users.org/wiki/LuaXml
 
