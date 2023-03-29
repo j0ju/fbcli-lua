@@ -33,15 +33,25 @@ local parse_ip_route = function(line)
   return r
 end
 
-local route_queue_process = function(q)
-  print("I: route_queue_process()")
-  dump(q)
+local route_queue_process = function(q, noop)
+  if FBcli.verbose then
+    pstrerr("I: route_queue_process()")
+  end
   for pfx, r in pairs(q) do
-    print("deQ: "..pfx)
     if r.op == "add" then
-      local rs = FB.route.add(FBhandle, r)
+      if noop then
+        pstderr(string.format("I: would add route %s via %s", r.prefix, r.via))
+      else
+        local rs, err = FB.route.add(FBhandle, r)
+        die_on_err(err)
+        pstderr(string.format("I: added route %s via %s", r.prefix, r.via))
+      end
     elseif r.op == "del" then
+      if noop then
+        pstderr(string.format("I: would add route %s via %s", r.prefix))
+      else
       -- TODO
+      end
     end
     q[pfx]=nil
   end
@@ -62,14 +72,17 @@ local fbcli_route_sync = function(argv, i)
     pollms = 5000, -- milliseconds to wait for pools, input and bursts
     allow = {},
     deny = {},
+    policy = "allow",
+    noop = false,
   }
   CLI.parse_into_table(args, argv, i)
   args.pollms = tonumber(args.pollms) -- ensure this is a number
+  dump(args)
 
   local pid, errmsg, errno, st, line
   local pipe = {}
 
-  if args.v4endpoint == "" and args.v6endpoint == "" then
+  if args.v4via == "" and args.v6via == "" then
     pstderr(string.format("E: fbcli_route_sync: router endpoint for IPv4 or IPv6 not set"))
     os.exit(1)
   end
@@ -123,7 +136,7 @@ local fbcli_route_sync = function(argv, i)
   elseif pid > 0 then
   -- Main
     pstderr(string.format("I: main PID: %s", unistd.getpid()))
-    pstderr(string.format("I: main fork PID: %s", unistd.getpid()))
+    pstderr(string.format("I: main fork PID: %s", pid))
     unistd.close(pipe.w)
     -- redirect STDIN to read from pipe
     unistd.dup2(pipe.r, unistd.STDIN_FILENO)
@@ -153,7 +166,7 @@ local fbcli_route_sync = function(argv, i)
       pstderr(string.format("E: fbcli_route_sync: cannot poll from pipe: %s monitor route: %s", args.ip, errmsg))
       os.exit(1)
     elseif events == 0 then
-      route_queue_process(q)
+      route_queue_process(q, args.noop)
     elseif events > 0 then
       if poll_fds[unistd.STDIN_FILENO].revents.IN then
         line = io.read()
@@ -176,6 +189,12 @@ local fbcli_route_sync = function(argv, i)
         r = parse_ip_route(line)
         if r.prefix == "default" then
           -- skip, we do not push default routes to fritzbox
+        elseif not ((r.table or "") == args.table) then
+          -- skip, this route event was not in the desired table
+        elseif args.policy == "deny" and not IP.contains(args.allow, r.prefix) then
+          -- skip, this route is not in the allowed net ranges
+        elseif args.policy == "allow" and IP.contains(args.deny, r.prefix) then
+          -- skip, this route is the denied net ranges
         elseif r.type == nil then
           -- check AF of route, if valid set appropiate via/endpoint
           r.af = IP.type(r.prefix)
@@ -191,7 +210,6 @@ local fbcli_route_sync = function(argv, i)
             -- augment some attributes of routes in FritzBoxes and enqueue
             r.name = ""
             r.active = 1
-            print("enQ: "..r.prefix)
             q[r.prefix] = r
           end
         end
@@ -199,7 +217,7 @@ local fbcli_route_sync = function(argv, i)
     end
   until false
   -- tail processing of queued routes
-  route_queue_process(q)
+  route_queue_process(q, args.noop)
 end
 
 return fbcli_route_sync

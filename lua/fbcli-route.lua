@@ -26,9 +26,9 @@ function route.add(argv, i)
     active = "1",
   }
   CLI.parse_into_table(r, argv, i)
-  dump(
-    FB.route.add(FBhandle, r)
-  )
+
+  local rs, err = FB.route.add(FBhandle, r)
+  return rs, err
 end
 route.replace = route.add
 
@@ -41,28 +41,28 @@ function route.delete(argv, i)
   }
   CLI.parse_into_table(r, argv, i)
   if r.name == "" then r.name = nil end
-  dump(
-    FB.route.delete(FBhandle, r.name or r.prefix, r.via)
-  )
+  local rs, err = FB.route.delete(FBhandle, r.name or r.prefix, r.via)
+  return rs, err
 end
 
 function route.flush(argv, i)
   repeat
-    routes, err = FB.route.list(FBhandle)
-    if err then
-      pstderr(string.format("E: %s route show: %s ", arg[0], err.message))
-      os.exit(1)
-    end
+    local routes, rs, err = FB.route.list(FBhandle)
+    die_on_err(err)
+
     local v=nil
     for pfx, r in pairs(routes) do
       local type = IP.type(pfx)
       if type:match("^ipv[46]") then
         print("I: removing route for " .. pfx .. " by name " .. r.name)
-        FB.route.delete(FBhandle, r.name)
+        rs, err = FB.route.delete(FBhandle, r.name)
+        v = r
+        die_on_err(err)
         break
       end
     end
   until v==nil
+  return nil, nil
 end
 
 return route

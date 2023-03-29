@@ -13,7 +13,9 @@ function fbcli_login(argv, i)
   die_on_err(err)
 
   if FBcli.verbose then dump(FBhandle) end
+
   print(FBhandle.sid)
+  return FBhandle, nil
 end
 return fbcli_login
 

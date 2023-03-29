@@ -58,13 +58,22 @@ FBcli.help = function()
     - table       - name of the local routing table to sync with
                     (default: main)
     - v4via       - where should the FritzBox should route to for extra
-                    routes (v4).
+                    routes (IPv4)
                     IPv4 routes are only synced if this is set
-    - v6via       - ... the same for (v6) -
+    - v6via       - ... the same for (IPv6)
     - follow      - do a continous sync
-    - ip          - full path of "ip" binary (default: /sbin/ip)
+                    (boolean: default: false)
+    - ip          - full path of "ip" binary
+                    (default: /sbin/ip)
     - pollms      - milliseconds to wait for input, before act on another
                     batch (default: 5000ms)
+    - noop        - dry run
+                    (boolean: false)
+    - policy      - policy to enforce if no allow or deny rule matches
+                    deny - allow list, rest deny by policy
+                    allow - deny list, rest allow by policy
+    - deny        - specifies a prefix to be denied, can be specified multiple times
+    - allow       - specifies a prefix to be denied, can be specified multiple times
   ]])
   os.exit(1)
 end
@@ -81,10 +90,12 @@ function FBcli.testcli(argv, i)
     bool = false,
     number = 5000,
     table = {},
+    ip = ""
   }
   local _, err = CLI.parse_into_table(args, argv, i)
   die_on_err(err)
 
+  args.ip_type, args.ip_addr, args.ip_cidr = IP.type(args.ip)
   dump(args)
 end
 
