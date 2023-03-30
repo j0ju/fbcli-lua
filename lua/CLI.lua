@@ -28,7 +28,7 @@ function CLI.action(table, argv, start)
   if start == nil then
     start = 1
   end
-  local obj = nil
+  local obj = table
   local i = start
   while argv[i] do
     obj = CLI_select(table, argv[i])
@@ -47,7 +47,7 @@ function CLI.action(table, argv, start)
     end
   end
   local error = {
-    errmsg = string.format("no CLI function implemented for ${%d} = '%s'", i, argv[i] or ""),
+    errmsg = string.format("no CLI function implemented for ${%d} = '%s'", i, argv[i] or "(null)"),
     exitcode = 1
   }
   return nil, error
