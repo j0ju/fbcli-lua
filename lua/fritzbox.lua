@@ -1,4 +1,5 @@
 #!/usr/bin/env lua5.1
+-- LICENSE: GPL v2, see LICENSE.txt
 
 local XML = require("simplexml")
 local JSON = require("JSON")
@@ -435,4 +436,5 @@ end
 
 return fb
 
+-- LICENSE: GPL v2, see LICENSE.txt
 -- vim: ts=2 et sw=2 fdm=indent ft=lua fml=1

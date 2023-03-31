@@ -1,4 +1,5 @@
 #!/usr/bin/env lua5.1
+-- LICENSE: GPL v2, see LICENSE.txt
 
 local unistd = require('posix.unistd')
 local posix = require('posix')
@@ -222,4 +223,5 @@ end
 
 return fbcli_route_sync
 
+-- LICENSE: GPL v2, see LICENSE.txt
 -- vim: ts=2 et sw=2 fdm=indent ft=lua

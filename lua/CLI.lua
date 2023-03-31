@@ -1,4 +1,5 @@
 #!/usr/bin/env lua5.1
+-- LICENSE: GPL v2, see LICENSE.txt
 
 local CLI = {
   --verbose = true,
@@ -173,4 +174,5 @@ end
 
 return CLI
 
+-- LICENSE: GPL v2, see LICENSE.txt
 -- vim: ts=2 et sw=2 fdm=indent ft=lua

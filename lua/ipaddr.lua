@@ -1,4 +1,5 @@
 #!/usr/bin/env lua5.1
+-- LICENSE: GPL v2, see LICENSE.txt
 
 local ipaddr = {}
 local bit = require("bit")
@@ -281,4 +282,5 @@ end
 
 return ipaddr
 
+-- LICENSE: GPL v2, see LICENSE.txt
 -- vim: ts=2 et sw=2 fdm=indent ft=lua

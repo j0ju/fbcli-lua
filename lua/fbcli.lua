@@ -1,4 +1,5 @@
 #!/usr/bin/env lua5.1
+-- LICENSE: GPL v2, see LICENSE.txt
 
 -- get local path of script and take care of symlinks
 -- add it to package path
@@ -115,4 +116,5 @@ die_on_err(err)
 
 os.exit(0)
 
+-- LICENSE: GPL v2, see LICENSE.txt
 -- vim: ts=2 et sw=2 fdm=indent ft=lua

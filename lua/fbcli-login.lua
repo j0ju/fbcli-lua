@@ -1,4 +1,5 @@
 #!/usr/bin/env lua5.1
+-- LICENSE: GPL v2, see LICENSE.txt
 
 function fbcli_login(argv, i)
   local fb = {
@@ -19,4 +20,5 @@ function fbcli_login(argv, i)
 end
 return fbcli_login
 
+-- LICENSE: GPL v2, see LICENSE.txt
 -- vim: ts=2 et sw=2 fdm=indent ft=lua
