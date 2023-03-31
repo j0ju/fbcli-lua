@@ -8,9 +8,13 @@ function route.show()
     pstderr(string.format("E: %s route show: %s ", arg[0], err.message))
     os.exit(1)
   else
-    for pfx, r in pairs(routes) do
-      if pfx:match("^.*/.*$") then
-        print(string.format("%s via %s name %s active %s", pfx, r.via, r.name, r.active))
+    for _, n in pairs({"route", "ip6route"}) do
+      local i = 0
+      local r
+      while routes[n .. i] do
+        r = routes[n .. i]
+        print(string.format("%s via %s name %s active %s", r.prefix, r.via, r.name, r.active))
+        i = i + 1
       end
     end
   end
