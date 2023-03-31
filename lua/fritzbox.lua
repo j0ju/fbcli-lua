@@ -114,7 +114,9 @@ local fb_POST_json_data_lua = function(fbhandle, page, args)
   error = nil
   if not (code == 200) then
     error = { code = code, message = string.format("HTTP call to %s (%s) unsuccessful %d. Check credentials!", url, page, code) }
-    pstderr("E: fb_POST_json_data_lua: ".. error.message)
+    if fb.verbose then
+      pstderr("E: fb_POST_json_data_lua: ".. error.message)
+    end
   end
 
   -- TODO: error handling on JSON
@@ -152,7 +154,10 @@ function fb.route.list(fbhandle)
     extraroutes.via[r.prefix] = extraroutes[r.prefix]
   end
   -- IPv6
-  fb_routes, e = fb.route.ipv6.list(fbhandle)
+  fb_routes, err = fb.route.ipv6.list(fbhandle)
+  if err then
+    return nil, err
+  end
   for _, fb_r in pairs(fb_routes.data.staticRoutes) do
     local r = {
       prefix = IP.prefix(fb_r.ipv6Address .. "/" .. fb_r.prefixLength),
