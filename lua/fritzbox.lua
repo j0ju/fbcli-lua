@@ -13,10 +13,8 @@ local ltn12 = require("ltn12")
 
 local fb = {
   verbose = true,
-  route = {
-    ipv4 = {},
-    ipv6 = {},
-  }
+  route = { ipv4 = {}, ipv6 = {}, },
+  host = {},
 }
 
 -- Helper:
@@ -80,7 +78,7 @@ end
 
 -- Helper:
 --   fetches a page of data.lua
-local fb_POST_json_data_lua = function(fbhandle, page, args)
+function fb_POST_json_data_lua(fbhandle, page, args)
   if fb.verbose then
     pstderr("I: fb_POST_json_data_lua(page = '".. page .."', [...])")
   end
@@ -432,6 +430,16 @@ function fb.route.ipv6.delete(fbhandle, name, via)
     until l == 0
     return (rs or true)
   end
+end
+
+function fb.host.list(fbhandle)
+  args = {
+    xhr="1",
+    xhrId="cleanup",
+    useajax="1",
+  }
+  local r, err = fb_POST_json_data_lua(fbhandle, "netDev", args)
+  return r, err
 end
 
 return fb

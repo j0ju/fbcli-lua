@@ -83,6 +83,7 @@ FBcli.login = require ("fbcli-login")
 FBcli.route = require ("fbcli-route")
 FBcli.route.help = FBcli.help
 FBcli.route.sync = require ("fbcli-route-sync")
+FBcli.host = require ("fbcli-host")
 
 
 function FBcli.testcli(argv, i)
