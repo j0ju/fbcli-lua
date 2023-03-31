@@ -20,7 +20,7 @@ local base_dir = function (fn)
 end
 package.path = base_dir(arg[0]) .. "/?.lua;" .. package.path
 
--- local
+-- requirements
 CLI = require("CLI")
 IP = require("ipaddr")
 FB = require("fritzbox")
@@ -80,6 +80,7 @@ end
 FBcli.DEFAULT = FBcli.help
 FBcli.login = require ("fbcli-login")
 FBcli.route = require ("fbcli-route")
+FBcli.route.help = FBcli.help
 FBcli.route.sync = require ("fbcli-route-sync")
 
 
