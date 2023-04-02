@@ -17,6 +17,7 @@ local fb = {
   verbose = true,
   route = { ipv4 = {}, ipv6 = {}, },
   host = {},
+  mesh = {},
 }
 
 -- Helper:
@@ -433,6 +434,16 @@ function fb.host.list(fbhandle)
     useajax="1",
   }
   local r, err = fb_POST_json_data_lua(fbhandle, "netDev", args)
+  return r, err
+end
+
+function fb.mesh.list(fbhandle)
+  args = {
+    xhr="1",
+    xhrId="initial",
+    useajax="1",
+  }
+  local r, err = fb_POST_json_data_lua(fbhandle, "homeNet", args)
   return r, err
 end
 

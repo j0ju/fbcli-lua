@@ -83,6 +83,11 @@ function host.dump() -- dump return of fritzbox unmodified
   local r, err = FB.host.list(FBhandle)
   die_on_err(err)
   dump(r)
+
+  r, err = FB.mesh.list(FBhandle)
+  die_on_err(err)
+  dump(r)
+
   return r, err
 end
 
