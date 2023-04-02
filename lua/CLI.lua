@@ -31,12 +31,14 @@ function CLI.action(table, argv, start)
   end
   local obj = table
   local i = start
+  local rs, err
   while argv[i] do
     obj = CLI_select(table, argv[i])
     if type(obj) == "table" then
       table = obj
     elseif type(obj) == "function" then
-      return obj(argv, i+1)
+      rs, err = obj(argv, i+1)
+      return rs, err
     elseif type(obj) == "nil" then
       break
     end
@@ -44,14 +46,15 @@ function CLI.action(table, argv, start)
   end
   if type(obj) == "table" then
     if obj["DEFAULT"] then
-      return obj["DEFAULT"]()
+      rs, err = obj["DEFAULT"](argv, i)
+      return rs, err
     end
   end
-  local error = {
+  local err = {
     errmsg = string.format("no CLI function implemented for ${%d} = '%s'", i, argv[i] or "(null)"),
     exitcode = 1
   }
-  return nil, error
+  return nil, err
 end
 
 local toboolean_map = {

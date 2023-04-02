@@ -280,6 +280,35 @@ function ipaddr.contains(net, ip)
   return true
 end
 
+function ipaddr.lesser_than(a, b) -- numerical compare a < b
+  local a = { address = a }
+  local b = { address = b }
+  local max_octets
+  a.type, a.address, a.cidr = ipaddr.type(a.address)
+  b.type, b.address, b.cidr = ipaddr.type(b.address)
+  
+  a.type = a.type:sub(1,4)
+  if not (a.type == b.type:sub(1,4)) then
+    return false
+  end
+  if a.type == "ipv4" then
+    a.octet = octet_from_string(a.address)
+    b.octet = octet_from_string(b.address)
+    max_octets = 4
+  elseif a.type == "ipv6" then
+    a.octet = doctet_from_string(a.address)
+    b.octet = doctet_from_string(b.address)
+    max_octets = 8
+  end
+  for i = 1, max_octets do
+    if tonumber(a.octet[i]) < tonumber(b.octet[i]) then
+      return true
+    end
+  end
+  return false
+
+end
+
 return ipaddr
 
 -- LICENSE: GPL v2, see LICENSE.txt

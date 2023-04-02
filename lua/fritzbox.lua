@@ -11,6 +11,8 @@ local io = require("io")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 
+require ("luautil")
+
 local fb = {
   verbose = true,
   route = { ipv4 = {}, ipv6 = {}, },
@@ -112,9 +114,9 @@ function fb_POST_json_data_lua(fbhandle, page, args)
   end
   error = nil
   if not (code == 200) then
-    error = { code = code, message = string.format("HTTP call to %s (%s) unsuccessful %d. Check credentials!", url, page, code) }
+    error = { code = code, errmsg = string.format("HTTP call to %s (%s) unsuccessful %d. Check credentials!", url, page, code) }
     if fb.verbose then
-      pstderr("E: fb_POST_json_data_lua: ".. error.message)
+      pstderr("E: fb_POST_json_data_lua: ".. error.errmsg)
     end
   end
 
@@ -260,14 +262,6 @@ function fb.route.add(fbhandle, route)
     pstderr("E: fb.route.add - AF not supported, yet")
     dump(route)
   end
-end
-
-function table.size(t)
-  local l=0
-  for k, _ in pairs(t) do
-    l = l + 1
-  end
-  return l
 end
 
 function fb.route.delete(fbhandle, name, via)

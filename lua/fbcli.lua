@@ -25,66 +25,24 @@ package.path = base_dir(arg[0]) .. "/?.lua;" .. package.path
 CLI = require("CLI")
 IP = require("ipaddr")
 FB = require("fritzbox")
+require "console"
+require "luautil"
 require "dump"
 
 -- defintion of CLI functions
 FBcli = { verbose = false, }
-FBcli.help = function()
-  local _, scriptname = arg[0]:match('(.-)([^\\/]-%.?([^%.\\/]*))$')
-  pstderr("Usage: ")
-  pstderr("  ".. scriptname .." [obj] <action?> <options*>")
-  pstderr("")
-  pstderr([[
-  * login       - gets session id from FritzBox and outputs it to STDOUT
-    - url         - see also environment FRITZBOX_URL
-    - user        - see also environment FRITZBOX_USER
-    - password    - see also environment FRITZBOX_PASSWORD
-
-  Objects and actions below need a valid session id in FRITZBOX_SESSION
-  for FRITZBOX_URL.
-
-  * route show  - shows all extra routes
-  * route add   - adds an extra route, it ensure that we have only one route
-                  for a prefix
-    - prefix
-    - via
-    - active      - flag determining if the route is "active", (default 1)
-
-  * route del   - deletes all extra route for prefix
-    - prefix
-
-  * route flush - remove all extra routes
-
-  * route sync  - sync extra routes on FritzBox with routes in routing table
-    - table       - name of the local routing table to sync with
-                    (default: main)
-    - v4via       - where should the FritzBox should route to for extra
-                    routes (IPv4)
-                    IPv4 routes are only synced if this is set
-    - v6via       - ... the same for (IPv6)
-    - follow      - do a continous sync
-                    (boolean: default: false)
-    - ip          - full path of "ip" binary
-                    (default: /sbin/ip)
-    - pollms      - milliseconds to wait for input, before act on another
-                    batch (default: 5000ms)
-    - noop        - dry run
-                    (boolean: false)
-    - policy      - policy to enforce if no allow or deny rule matches
-                    deny - allow list, rest deny by policy
-                    allow - deny list, rest allow by policy
-    - deny        - specifies a prefix to be denied, can be specified multiple times
-    - allow       - specifies a prefix to be denied, can be specified multiple times
-  ]])
-  os.exit(1)
-end
+FBcli.help = require ("fbcli.help")
 FBcli.DEFAULT = FBcli.help
-FBcli.login = require ("fbcli-login")
-FBcli.route = require ("fbcli-route")
+FBcli.login = require ("fbcli.login")
+FBcli.route = require ("fbcli.route")
 FBcli.route.help = FBcli.help
-FBcli.route.sync = require ("fbcli-route-sync")
-FBcli.host = require ("fbcli-host")
+FBcli.route.sync = require ("fbcli.route.sync")
+FBcli.host = require ("fbcli.host")
 
+-- FBcli.ula -- list, set
+-- FBcli.dnsserver -- list == show, set
+-- FBcli.allowdnsrebind -- list == show, set, add, remove
+-- FBcli.status -- list == show
 
 function FBcli.testcli(argv, i)
   -- CLI Parse
