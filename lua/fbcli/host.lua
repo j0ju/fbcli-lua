@@ -13,8 +13,8 @@ function host.list(argv, i)
   }
   CLI.parse_into_table(opts, argv, i)
 
-  table_display_opts = {
-    name = {},
+  local table_display_opts = {
+    name = { prefix = "-"},
     mac = {},
     ipv4 = {},
     port = {},
@@ -37,7 +37,7 @@ function host.list(argv, i)
 
   local hostlist = {}, online
   for _, v in pairs({"active", "passive"}) do
-  	for _, h in pairs(r.data[v]) do repeat
+    for _, h in pairs(r.data[v]) do repeat
       --dump(h)
       online = "no"
       if v == "active" then

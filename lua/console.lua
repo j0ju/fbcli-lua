@@ -8,28 +8,28 @@ function console_table_dump(t, display_opts)
   local heading = {}
   for f, opt in pairs(display_opts) do repeat
     if type(f) == "number" then
-	  break
-	end
+      break
+    end
 
     if opt.format == nil then
-	  opt.format = "s"
-	end
+      opt.format = "s"
+    end
     if opt.heading == nil then
-	  opt.heading = string.upper(f)
-	end
+      opt.heading = string.upper(f)
+    end
     if opt.len == nil then
-	  opt.len = #opt.heading
-	end
-	if display_opts[order] == nil then
-	  display_opts[order] = f
-	  order = order+1
-	end
-	for k, v in pairs(t) do
+      opt.len = #opt.heading
+    end
+    if display_opts[order] == nil then
+      display_opts[order] = f
+      order = order+1
+    end
+    for k, v in pairs(t) do
       if #(v[f] or "(nil)") > opt.len then
-	    opt.len = #(v[f] or "(nil)")
-	  end
-	end
-  	heading[f] = opt.heading
+        opt.len = #(v[f] or "(nil)")
+      end
+    end
+    heading[f] = opt.heading
   until true end
   -- table heading as element #0
   t[0] = heading
@@ -38,16 +38,16 @@ function console_table_dump(t, display_opts)
   while t[i] do
     order = 1
     while display_opts[order] do
-	  f = display_opts[order]
-	  opt = display_opts[f]
-	  if opt._fmt == nil then
-	  	opt._fmt = " %".. opt.len .. opt.format
-	  end
-  	  io.write(string.format(opt._fmt, t[i][f]))
-	  order=order+1
+      f = display_opts[order]
+      opt = display_opts[f]
+      if opt._fmt == nil then
+        opt._fmt = " %".. (opt.prefix or "") .. opt.len .. opt.format
+      end
+      io.write(string.format(opt._fmt, t[i][f]))
+      order=order+1
     end
     io.write('\n')
-	i=i+1
+    i=i+1
   end
 end
 

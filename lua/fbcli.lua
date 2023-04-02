@@ -41,9 +41,10 @@ FBcli.host = require ("fbcli.host")
 FBcli.status = require ("fbcli.status")
 
 -- FBcli.ula -- list, set
--- FBcli.dnsserver -- list == show, set
--- FBcli.allowdnsrebind -- list == show, set, add, remove
--- FBcli.status -- list == show
+
+-- FBcli.dns -- list == show, set
+-- FBcli.dns.server -- list == show, set, add, del
+-- FBcli.dns.rebindallow -- list == show, set, add, del
 
 FBcli.testcli = CLI.example_action
 
