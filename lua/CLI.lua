@@ -163,6 +163,22 @@ function CLI.parse_into_table(table, argv, start)
   return table, nil
 end
 
+function CLI.example_action(argv, i)
+  -- CLI Parse
+  local args = {
+    string = "string",
+    bool = false,
+    number = 5000,
+    table = {},
+    ip = ""
+  }
+  local _, err = CLI.parse_into_table(args, argv, i)
+  die_on_err(err)
+
+  args.ip_type, args.ip_addr, args.ip_cidr = IP.type(args.ip)
+  dump(args)
+end
+
 function pstderr(str)
   io.stderr:write(str)
   io.stderr:write("\n")

@@ -436,6 +436,16 @@ function fb.host.list(fbhandle)
   return r, err
 end
 
+function fb.status(fbhandle) -- online status
+  args = {
+    xhr="1",
+    xhrId="all",
+    useajax="1",
+  }
+  local r, err = fb_POST_json_data_lua(fbhandle, "netMoni", args)
+  return r, err
+end
+
 return fb
 
 -- LICENSE: GPL v2, see LICENSE.txt

@@ -38,35 +38,22 @@ FBcli.route = require ("fbcli.route")
 FBcli.route.help = FBcli.help
 FBcli.route.sync = require ("fbcli.route.sync")
 FBcli.host = require ("fbcli.host")
+FBcli.status = require ("fbcli.status")
 
 -- FBcli.ula -- list, set
 -- FBcli.dnsserver -- list == show, set
 -- FBcli.allowdnsrebind -- list == show, set, add, remove
 -- FBcli.status -- list == show
 
-function FBcli.testcli(argv, i)
-  -- CLI Parse
-  local args = {
-    string = "string",
-    bool = false,
-    number = 5000,
-    table = {},
-    ip = ""
-  }
-  local _, err = CLI.parse_into_table(args, argv, i)
-  die_on_err(err)
-
-  args.ip_type, args.ip_addr, args.ip_cidr = IP.type(args.ip)
-  dump(args)
-end
+FBcli.testcli = CLI.example_action
 
 
 -- set FritzBox session & CLI call
 FBhandle = {
   url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
-  sid = os.getenv("FRITZBOX_SESSION") or "",
+  sid = os.getenv("FRITZBOX_SESSION") or 0,
 }
-
+-- disable verbosity
 FB.verbose = false
 FBcli.verbose = false
 
