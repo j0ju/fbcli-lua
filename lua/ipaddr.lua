@@ -288,8 +288,9 @@ function ipaddr.lesser_than(a, b) -- numerical compare a < b
   b.type, b.address, b.cidr = ipaddr.type(b.address)
   
   a.type = a.type:sub(1,4)
+  b.type = b.type:sub(1,4)
   if not (a.type == b.type:sub(1,4)) then
-    return false
+    return (a.type < b.type) -- any IPv6 is larger than any IPv4
   end
   if a.type == "ipv4" then
     a.octet = octet_from_string(a.address)
@@ -303,10 +304,14 @@ function ipaddr.lesser_than(a, b) -- numerical compare a < b
   for i = 1, max_octets do
     if tonumber(a.octet[i]) < tonumber(b.octet[i]) then
       return true
+    elseif tonumber(a.octet[i]) > tonumber(b.octet[i]) then
+      return false
     end
   end
+  if a.cidr > b.cidr then -- smaller prefix wins
+    return true
+  end
   return false
-
 end
 
 return ipaddr
