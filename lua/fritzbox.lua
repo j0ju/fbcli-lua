@@ -148,12 +148,14 @@ function fb.route.list(fbhandle)
       name = fb_r._node,
       active = fb_r.activated,
     }
+    -- we add this route by refernce indexed in multiple ways
+    -- by
+    --  * prefix
+    --  * FritzBox's internal name
+    -- and with lua list indexes for sort
     extraroutes[r.prefix] = r
     extraroutes[r.name] = extraroutes[r.prefix]
-    if extraroutes.via == nil then
-      extraroutes.via = {}
-    end
-    extraroutes.via[r.prefix] = extraroutes[r.prefix]
+    table.add(extraroutes, r)
   end
   -- IPv6
   fb_routes, err = fb.route.ipv6.list(fbhandle)
@@ -169,10 +171,7 @@ function fb.route.list(fbhandle)
     }
     extraroutes[r.prefix] = r
     extraroutes[r.name] = extraroutes[r.prefix]
-    if extraroutes.via == nil then
-      extraroutes.via = {}
-    end
-    extraroutes.via[r.prefix] = extraroutes[r.prefix]
+    table.add(extraroutes, r)
   end
   --
   return extraroutes, nil

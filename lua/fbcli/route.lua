@@ -3,20 +3,29 @@
 
 local route = {}
 
+local route_sort = function(a,b)
+  local a = a
+  local b = b
+  if a == nil then
+    a = { prefix = "0.0.0.0" }
+  elseif b == nil then
+    b = { prefix = "0.0.0.0" }
+  end
+  return IP.lesser_than(a.prefix, b.prefix)
+end
+
 function route.show()
-  routes, err = FB.route.list(FBhandle)
+  local routes, err = FB.route.list(FBhandle)
   if err then
-    pstderr(string.format("E: %s route show: %s ", arg[0], err.message))
+    pstderr(string.format("E: %s route show: %s ", arg[0], err.errmsg))
     os.exit(1)
   else
-    for _, n in pairs({"route", "ip6route"}) do
-      local i = 0
-      local r
-      while routes[n .. i] do
-        r = routes[n .. i]
-        print(string.format("%s via %s name %s active %s", r.prefix, r.via, r.name, r.active))
-        i = i + 1
-      end
+    table.sort(routes, route_sort)
+    local i = 1, r
+    while routes[i] do
+      r = routes[i]
+      print(string.format("%s via %s name %s active %s", r.prefix, r.via, r.name, r.active))
+      i = i + 1
     end
   end
 end
