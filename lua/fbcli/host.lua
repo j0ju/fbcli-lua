@@ -35,22 +35,18 @@ function host.list(argv, i)
   local r, err = FB.host.list(FBhandle)
   die_on_err(err)
 
-  local hostlist = {}, online
-  for _, v in pairs({"active", "passive"}) do
+  local hostlist = {}
+  local online
+  for _, v in pairs({"active", "passive", "fbox"}) do
     for _, h in pairs(r.data[v]) do repeat
       --dump(h)
       online = "no"
-      if v == "active" then
-        if not opts.active then
-          break
-        end
+      if h.model == "active" then
         online = "yes"
-      else
-        if not opts.passive then
-          break
-        end
+      elseif h.model == "fbox" then
+        online = "yes"
       end
-      n = {
+      local n = {
         name = h.name,
         mac = h.mac,
         ipv4 = h.ipv4.ip or "(UNKNOWN)",
@@ -73,20 +69,44 @@ function host.list(argv, i)
     table.sort(hostlist, function (a, b) return IP.lesser_than(a.ipv4, b.ipv4) end)
   end
 
-  console_table_dump(hostlist, table_display_opts) 
+  console_table_dump(hostlist, table_display_opts)
   return r, err
 end
 host.DEFAULT = host.list
 host.show = host.list
+
+function host.delete(argv, i)
+  local opts = {
+    name = "",
+  }
+  CLI.parse_into_table(opts, argv, i)
+  if opts.name == "" then
+    return nil, {
+      exitcode = 1,
+      errmsg = "no hostname to delete given",
+    }
+  end
+
+  local r, err = FB.host.list(FBhandle)
+  die_on_err(err)
+
+  for _, h in pairs(r.data.passive) do
+    if opts.name == h.name then
+      dump(h)
+    end
+  end
+
+  return r, err
+end
 
 function host.dump() -- dump return of fritzbox unmodified
   local r, err = FB.host.list(FBhandle)
   die_on_err(err)
   dump(r)
 
-  r, err = FB.mesh.list(FBhandle)
-  die_on_err(err)
-  dump(r)
+  --local r, err = FB.mesh.list(FBhandle)
+  --die_on_err(err)
+  --dump(r)
 
   return r, err
 end
