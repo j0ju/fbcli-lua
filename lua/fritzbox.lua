@@ -22,7 +22,7 @@ local fb = {
 
 -- Helper:
 --   for login, generates response on challange for authentication
-function fb_response(ch, pw)
+local fb_response = function(ch, pw)
   local pre = ch .. "-" .. pw
   local n = ""
   local i = 0
@@ -81,7 +81,7 @@ end
 
 -- Helper:
 --   fetches a page of data.lua
-function fb_POST_json_data_lua(fbhandle, page, args)
+local fb_POST_json_data_lua = function(fbhandle, page, args)
   if fb.verbose then
     pstderr("I: fb_POST_json_data_lua(page = '".. page .."', [...])")
   end
@@ -427,7 +427,7 @@ function fb.route.ipv6.delete(fbhandle, name, via)
 end
 
 function fb.host.list(fbhandle)
-  args = {
+  local args = {
     xhr="1",
     xhrId="cleanup",
     useajax="1",
@@ -437,7 +437,7 @@ function fb.host.list(fbhandle)
 end
 
 function fb.mesh.list(fbhandle)
-  args = {
+  local args = {
     xhr="1",
     xhrId="initial",
     useajax="1",
@@ -447,7 +447,7 @@ function fb.mesh.list(fbhandle)
 end
 
 function fb.status(fbhandle) -- online status
-  args = {
+  local args = {
     xhr="1",
     xhrId="all",
     useajax="1",
