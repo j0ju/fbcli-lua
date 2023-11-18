@@ -17,7 +17,7 @@ end
 function route.show()
   local routes, err = FB.route.list(FBhandle)
   if err then
-    pstderr(string.format("E: %s route show: %s ", arg[0], err.errmsg))
+    PStdErr(string.format("E: %s route show: %s ", arg[0], err.errmsg))
     os.exit(1)
   else
     table.sort(routes, route_sort)
@@ -36,11 +36,15 @@ function route.add(argv, i)
   local r = {
     prefix = argv[i] or "",
     via = "",
-    name = "",
     active = "1",
   }
   CLI.parse_into_table(r, argv, i)
-
+  if r.prefix == "" then
+    return nil, { exitcode = 1, errmsg = "no prefix given" }
+  end
+  if r.prefix == "" then
+    return nil, { exitcode = 1, errmsg = "no via given" }
+  end
   local rs, err = FB.route.add(FBhandle, r)
   return rs, err
 end
@@ -54,6 +58,9 @@ function route.delete(argv, i)
     active = "",
   }
   CLI.parse_into_table(r, argv, i)
+  if r.prefix == "" then
+    return nil, { exitcode = 1, errmsg = "no prefix given" }
+  end
   if r.name == "" then r.name = nil end
   local rs, err = FB.route.delete(FBhandle, r.name or r.prefix, r.via)
   return rs, err
@@ -62,7 +69,7 @@ end
 function route.flush(argv, i)
   repeat
     local routes, rs, err = FB.route.list(FBhandle)
-    die_on_err(err)
+    DieOnErr(err)
 
     local v=nil
     for pfx, r in pairs(routes) do
@@ -71,7 +78,7 @@ function route.flush(argv, i)
         print("I: removing route for " .. pfx .. " by name " .. r.name)
         rs, err = FB.route.delete(FBhandle, r.name)
         v = r
-        die_on_err(err)
+        DieOnErr(err)
         break
       end
     end

@@ -5,7 +5,7 @@ local status = {}
 
 function status.show(argv, i)
   local r, err = FB.status(FBhandle)
-  die_on_err(err)
+  DieOnErr(err)
 
   -- do not display, erase DSL stats for now
   --r.data.sync_groups = nil

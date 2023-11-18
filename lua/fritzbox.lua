@@ -1,6 +1,8 @@
 #!/usr/bin/env lua5.1
 -- LICENSE: GPL v2, see LICENSE.txt
 
+-- functions to call the FritzBox API
+
 local XML = require("simplexml")
 local JSON = require("JSON")
 local MD5 = require("md5")
@@ -83,7 +85,7 @@ end
 --   fetches a page of data.lua
 local fb_POST_json_data_lua = function(fbhandle, page, args)
   if fb.verbose then
-    pstderr("I: fb_POST_json_data_lua(page = '".. page .."', [...])")
+    PStdErr("I: fb_POST_json_data_lua(page = '".. page .."', [...])")
   end
   if args == nil then
     args = {}
@@ -111,13 +113,13 @@ local fb_POST_json_data_lua = function(fbhandle, page, args)
   }
 
   if fb.verbose then
-    pstderr("I: fb_POST_json_data_lua: HTTP status: ".. code)
+    PStdErr("I: fb_POST_json_data_lua: HTTP status: ".. code)
   end
   error = nil
   if not (code == 200) then
     error = { code = code, errmsg = string.format("HTTP call to %s (%s) unsuccessful %d. Check credentials!", url, page, code) }
     if fb.verbose then
-      pstderr("E: fb_POST_json_data_lua: ".. error.errmsg)
+      PStdErr("E: fb_POST_json_data_lua: ".. error.errmsg)
     end
   end
 
@@ -131,7 +133,7 @@ end
 
 function fb.route.list(fbhandle)
   if fb.verbose then
-    pstderr("I: fb.route.list()")
+    PStdErr("I: fb.route.list()")
   end
   local extraroutes = {}
   -- IPv4
@@ -204,7 +206,7 @@ function fb.route.add(fbhandle, route)
   route.prefix = IP.prefix(route.prefix)
   route.type, _, _= IP.type(route.prefix)
   if fb.verbose then
-    pstderr( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, (route.name or "")))
+    PStdErr( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, (route.name or "")))
   end
   if route.type == "ipv4+cidr" then
   -- IPv4
@@ -259,14 +261,14 @@ function fb.route.add(fbhandle, route)
       return fb.route.ipv6.add(fbhandle, route.prefix, route.via, route.active)
     end
   else
-    pstderr("E: fb.route.add - AF not supported, yet")
+    PStdErr("E: fb.route.add - AF not supported, yet")
     dump(route)
   end
 end
 
 function fb.route.delete(fbhandle, name, via)
   if fb.verbose then
-    pstderr(string.format("I: fb.route.delete(%s, %s)", name, via or ""))
+    PStdErr(string.format("I: fb.route.delete(%s, %s)", name, via or ""))
   end
   local t, a, p = IP.type(name)
   -- IPv4
@@ -280,7 +282,7 @@ function fb.route.delete(fbhandle, name, via)
   elseif (t or ""):find("^ipv6") then
     return fb.route.ipv6.delete(fbhandle, name, via)
   else
-    pstderr("E: fb.route.del - address family not supported, yet")
+    PStdErr("E: fb.route.del - address family not supported, yet")
     dump({ name = name, via = via})
   end
 end
@@ -288,14 +290,14 @@ end
 -- Lists routes, routes are in .data.staticRoutes.route
 function fb.route.ipv4.list(fbhandle)
   if fb.verbose then
-    pstderr("I: fb.route.ipv4.list()")
+    PStdErr("I: fb.route.ipv4.list()")
   end
   return fb_POST_json_data_lua(fbhandle, "static_route_table")
 end
 
 function fb.route.ipv6.list(fbhandle)
   if fb.verbose then
-    pstderr("I: fb.route.ipv6.list()")
+    PStdErr("I: fb.route.ipv6.list()")
   end
   return fb_POST_json_data_lua(fbhandle, "static_IPv6_route_table")
 end
@@ -306,7 +308,7 @@ function fb.route.ipv4.set(fbhandle, prefix, via, active, name)
   local name = (name or "")
 
   if fb.verbose then
-    pstderr(string.format("I: fb.route.ipv4.set(%s, %s, %s, %s)", prefix, via, active, name))
+    PStdErr(string.format("I: fb.route.ipv4.set(%s, %s, %s, %s)", prefix, via, active, name))
   end
   -- split prefix in oktets and cidr
   local i, _, ip1, ip2, ip3, ip4, cidr = prefix:find('(%d+).(%d+).(%d+).(%d+)/(%d+)')
@@ -348,7 +350,7 @@ function fb.route.ipv6.set(fbhandle, prefix, via, active, name)
   local name = (name or "")
 
   if fb.verbose then
-    pstderr(string.format("I: fb.route.ipv6.set(%s, %s, %s, %s)", prefix, via, active, name))
+    PStdErr(string.format("I: fb.route.ipv6.set(%s, %s, %s, %s)", prefix, via, active, name))
   end
 
   -- api call to create a new route
@@ -368,7 +370,7 @@ fb.route.ipv6.add = fb.route.ipv6.set
 --  - "name" can be "prefix" or "route name"
 function fb.route.ipv4.delete(fbhandle, name, via)
   if fb.verbose then
-    pstderr(string.format("I: fb.route.ipv4.delete(%s, %s)", name, via or ""))
+    PStdErr(string.format("I: fb.route.ipv4.delete(%s, %s)", name, via or ""))
   end
   local t, a, p = IP.type(name)
   local rs
@@ -399,7 +401,7 @@ end
 --  - "name" can be "prefix" or "route name"
 function fb.route.ipv6.delete(fbhandle, name, via)
   if fb.verbose then
-    pstderr(string.format("I: fb.route.ipv6.delete(%s, %s)", name, via or ""))
+    PStdErr(string.format("I: fb.route.ipv6.delete(%s, %s)", name, via or ""))
   end
   local t, a, p = IP.type(name)
   local rs
@@ -433,6 +435,19 @@ function fb.host.list(fbhandle)
     useajax="1",
   }
   local r, err = fb_POST_json_data_lua(fbhandle, "netDev", args)
+  return r, err
+end
+
+function fb.host.delete(fbhandle, landevice, devname)
+  local args = {
+    xhr="1",
+    --
+    delete=landevice,
+    devname=devname,
+  }
+  dump(args)
+  local r, err = fb_POST_json_data_lua(fbhandle, "netDev", args)
+  dump(r)
   return r, err
 end
 

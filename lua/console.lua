@@ -33,7 +33,7 @@ function console_table_dump(t, display_opts)
   until true end
   -- table heading as element #0
   t[0] = heading
-  
+
   local i=0
   while t[i] do
     order = 1

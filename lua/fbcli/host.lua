@@ -25,21 +25,17 @@ function host.list(argv, i)
 
   if (not (opts.sort == "")) then
     if table_display_opts[opts.sort] == nil then
-      return nil, {
-        exitcode = 1,
-        errmsg = string.format("cannot sort for coloumn '%s'.", opts.sort),
-      }
+      return nil, { exitcode = 1, errmsg = string.format("cannot sort for coloumn '%s'.", opts.sort) }
     end
   end
 
   local r, err = FB.host.list(FBhandle)
-  die_on_err(err)
+  DieOnErr(err)
 
   local hostlist = {}
   local online
   for _, v in pairs({"active", "passive", "fbox"}) do
     for _, h in pairs(r.data[v]) do repeat
-      --dump(h)
       online = "no"
       if h.model == "active" then
         online = "yes"
@@ -75,37 +71,40 @@ end
 host.DEFAULT = host.list
 host.show = host.list
 
+-- # TODO: not finish, Q: why is ther a confirmation in the API?
 function host.delete(argv, i)
   local opts = {
     name = "",
   }
   CLI.parse_into_table(opts, argv, i)
   if opts.name == "" then
-    return nil, {
-      exitcode = 1,
-      errmsg = "no hostname to delete given",
-    }
+    return nil, { exitcode = 1, errmsg = "no hostname to delete given" }
   end
 
   local r, err = FB.host.list(FBhandle)
-  die_on_err(err)
+  DieOnErr(err)
 
+  -- only passive/offline devices can be deleted
   for _, h in pairs(r.data.passive) do
     if opts.name == h.name then
       dump(h)
+      r, err = FB.host.delete(FBhandle, h.UID, h.name)
+      DieOnErr(err)
     end
   end
 
   return r, err
 end
 
+-- # debugging aid
 function host.dump() -- dump return of fritzbox unmodified
   local r, err = FB.host.list(FBhandle)
-  die_on_err(err)
+  DieOnErr(err)
   dump(r)
 
+  -- # mesh dump #
   --local r, err = FB.mesh.list(FBhandle)
-  --die_on_err(err)
+  --DieOnErr(err)
   --dump(r)
 
   return r, err

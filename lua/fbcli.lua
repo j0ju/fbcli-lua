@@ -59,7 +59,7 @@ FB.verbose = false
 FBcli.verbose = false
 
 local rs, err = CLI.action(FBcli, arg)
-die_on_err(err)
+DieOnErr(err)
 
 os.exit(0)
 

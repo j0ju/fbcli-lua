@@ -17,7 +17,8 @@ function sxml.parse(s)
   local top = {}
   table.insert(stack, top)
   local ni,c,label,xarg, empty
-  local i, j = 1, 1
+  local i = 1
+  local j = 1
   while true do
     ni,j,c,label,xarg, empty = string.find(s, "<(%/?)([%w:]+)(.-)(%/?)>", i)
     if not ni then break end
@@ -61,7 +62,7 @@ function sxml.find_element(xmltree, name)
   elseif type(xmltree) == "string" then
   else
     for _, subtree in pairs(xmltree) do
-      rs = sxml.find_element(subtree, name)
+      local rs = sxml.find_element(subtree, name)
       if rs then
         return rs
       end

@@ -75,9 +75,8 @@ end
 --        or nil on error
 local doctet_from_string = function(inp)
   local inp = inp
-  local doctet = {}, o
-
-  local i, _, outp, cidr = inp:find('^(.+)/(%d+)$')
+  local doctet = {}
+  local i, _, o, token, outp, cidr = inp:find('^(.+)/(%d+)$')
   if not i then outp = inp end
 
   -- start parsing from the beginning
@@ -258,7 +257,8 @@ function ipaddr.contains(net, ip)
     local ip_doctet = doctet_from_string(ip_a)
     if ip_doctet == nil then return false end
 
-    local mask_cidr = tonumber(net_cidr), mask
+    local mask_cidr = tonumber(net_cidr)
+    local mask
     for i = 1,8 do
       if mask_cidr > 15 then
         mask = 65535

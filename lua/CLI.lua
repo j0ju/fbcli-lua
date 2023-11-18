@@ -31,7 +31,8 @@ function CLI.action(table, argv, start)
   end
   local obj = table
   local i = start
-  local rs, err
+  local rs
+  local err
   while argv[i] do
     obj = CLI_select(table, argv[i])
     if type(obj) == "table" then
@@ -50,7 +51,7 @@ function CLI.action(table, argv, start)
       return rs, err
     end
   end
-  local err = {
+  err = {
     errmsg = string.format("no CLI function implemented for ${%d} = '%s'", i, argv[i] or "(null)"),
     exitcode = 1
   }
@@ -68,11 +69,11 @@ local toboolean_map = {
   ["no"]      = false,
   [0]         = false,
   ["0"]       = false,
-  ["true"]    = false,
+  ["false"]    = false,
   ["disable"] = false,
   ["dis"]     = false,
 }
-function toboolean(str)
+local toboolean = function(str)
   return toboolean_map[str]
 end
 
@@ -98,7 +99,7 @@ function CLI.parse_into_table(table, argv, start)
               exitcode = 1,
               position = i+1,
             }
-            if CLI.verbose then pstderr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
+            if CLI.verbose then PStdErr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
             return nil, error
           else
             table[k] = argv[i+1]
@@ -112,7 +113,7 @@ function CLI.parse_into_table(table, argv, start)
               exitcode = 1,
               position = i+1,
             }
-            if CLI.verbose then pstderr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
+            if CLI.verbose then PStdErr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
             return nil, error
           else
             val = tonumber(argv[i+1])
@@ -122,7 +123,7 @@ function CLI.parse_into_table(table, argv, start)
                 exitcode = 1,
                 position = i+1,
               }
-              if CLI.verbose then pstderr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
+              if CLI.verbose then PStdErr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
               return nil, error
             end
             table[k] = tonumber(argv[i+1])
@@ -148,7 +149,7 @@ function CLI.parse_into_table(table, argv, start)
               exitcode = 1,
               position = i+1,
             }
-            if CLI.verbose then pstderr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
+            if CLI.verbose then PStdErr(string.format("E: CLI.parse_into_table: %s", error.errmsg)) end
             return nil, error
           else
             table[k][#table[k]+1] = argv[i+1]
@@ -173,20 +174,20 @@ function CLI.example_action(argv, i)
     ip = ""
   }
   local _, err = CLI.parse_into_table(args, argv, i)
-  die_on_err(err)
+  DieOnErr(err)
 
   args.ip_type, args.ip_addr, args.ip_cidr = IP.type(args.ip)
   dump(args)
 end
 
-function pstderr(str)
+function PStdErr(str)
   io.stderr:write(str)
   io.stderr:write("\n")
 end
 
-function die_on_err(err)
+function DieOnErr(err)
   if err then
-    pstderr(string.format("E: %s", err.errmsg ))
+    PStdErr(string.format("E: %s", err.errmsg ))
     os.exit(err.exitcode or 1)
   end
 end

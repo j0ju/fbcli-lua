@@ -1,17 +1,17 @@
 #!/usr/bin/env lua5.1
 -- LICENSE: GPL v2, see LICENSE.txt
 
-function fbcli_login(argv, i)
+local fbcli_login = function(argv, i)
   local fb = {
     url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
     password = os.getenv("FRITZBOX_PASSWORD") or "",
     user = os.getenv("FRITZBOX_USER") or "",
   }
   local _, err = CLI.parse_into_table(fb, argv, i)
-  die_on_err(err)
+  DieOnErr(err)
 
   FBhandle, err = FB.login(fb.user, fb.password, fb.url)
-  die_on_err(err)
+  DieOnErr(err)
 
   if FBcli.verbose then dump(FBhandle) end
 

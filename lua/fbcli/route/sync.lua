@@ -41,15 +41,15 @@ local route_queue_process = function(q, noop)
   for pfx, r in pairs(q) do
     if r.op == "add" then
       if noop then
-        pstderr(string.format("I: would add route %s via %s", r.prefix, r.via))
+        PStdErr(string.format("I: would add route %s via %s", r.prefix, r.via))
       else
         local rs, err = FB.route.add(FBhandle, r)
-        die_on_err(err)
-        pstderr(string.format("I: added route %s via %s", r.prefix, r.via))
+        DieOnErr(err)
+        PStdErr(string.format("I: added route %s via %s", r.prefix, r.via))
       end
     elseif r.op == "del" then
       if noop then
-        pstderr(string.format("I: would add route %s via %s", r.prefix))
+        PStdErr(string.format("I: would add route %s via %s", r.prefix))
       else
       -- TODO
       end
@@ -60,7 +60,7 @@ end
 
 local fbcli_route_sync = function(argv, i)
   if FBcli.verbose then
-    pstderr("fbcli_route_sync()")
+    PStdErr("fbcli_route_sync()")
   end
 
   -- CLI Parse
@@ -84,7 +84,7 @@ local fbcli_route_sync = function(argv, i)
   local pipe = {}
 
   if args.v4via == "" and args.v6via == "" then
-    pstderr(string.format("E: fbcli_route_sync: router endpoint for IPv4 or IPv6 not set"))
+    PStdErr(string.format("E: fbcli_route_sync: router endpoint for IPv4 or IPv6 not set"))
     os.exit(1)
   end
 
@@ -92,7 +92,7 @@ local fbcli_route_sync = function(argv, i)
   pipe.r, pipe.w, errno = unistd.pipe()
   if pipe.r == nil then
     -- error message is in pipe.w
-    pstderr(string.format("E: fbcli_route_sync: cannot create pipe to 'ip route monitor': %s"), pipe.w)
+    PStdErr(string.format("E: fbcli_route_sync: cannot create pipe to 'ip route monitor': %s"), pipe.w)
     os.exit(1)
   end
 
@@ -103,7 +103,7 @@ local fbcli_route_sync = function(argv, i)
     unistd.close(pipe.r)
     -- redirect STDOUT to pipe
     unistd.dup2(pipe.w, unistd.STDOUT_FILENO)
-    pstderr(string.format("I: fork PID: %s", unistd.getpid()))
+    PStdErr(string.format("I: fork PID: %s", unistd.getpid()))
   -- coldplug - popen and output "ip -$IPVER route show"
     for _, ipver in pairs({ "4", "6"  }) do
       local table = ""
@@ -126,7 +126,7 @@ local fbcli_route_sync = function(argv, i)
       st, errmsg, errno = unistd.exec(args.ip, {"monitor", "route"})
       -- fallthrough if exec fails
       if st == nil then
-        pstderr(string.format("E: fbcli_route_sync: cannot exec command: '%s monitor route': %s", args.ip, errmsg))
+        PStdErr(string.format("E: fbcli_route_sync: cannot exec command: '%s monitor route': %s", args.ip, errmsg))
         os.exit(1)
       end
     end
@@ -136,13 +136,13 @@ local fbcli_route_sync = function(argv, i)
     os.exit(0)
   elseif pid > 0 then
   -- Main
-    pstderr(string.format("I: main PID: %s", unistd.getpid()))
-    pstderr(string.format("I: main fork PID: %s", pid))
+    PStdErr(string.format("I: main PID: %s", unistd.getpid()))
+    PStdErr(string.format("I: main fork PID: %s", pid))
     unistd.close(pipe.w)
     -- redirect STDIN to read from pipe
     unistd.dup2(pipe.r, unistd.STDIN_FILENO)
   else
-    pstderr(string.format("E: fbcli_route_sync: cannot fork: %s", errmsg))
+    PStdErr(string.format("E: fbcli_route_sync: cannot fork: %s", errmsg))
     os.exit(1)
   end
 
@@ -164,7 +164,7 @@ local fbcli_route_sync = function(argv, i)
     --  TODO: relogin on credential fails
     local events, errmsg, errno = posix.poll(poll_fds, args.pollms)
     if events == nil then
-      pstderr(string.format("E: fbcli_route_sync: cannot poll from pipe: %s monitor route: %s", args.ip, errmsg))
+      PStdErr(string.format("E: fbcli_route_sync: cannot poll from pipe: %s monitor route: %s", args.ip, errmsg))
       os.exit(1)
     elseif events == 0 then
       route_queue_process(q, args.noop)
@@ -182,10 +182,10 @@ local fbcli_route_sync = function(argv, i)
 
     if not (line == nil) then
       if line:match("^-- end") then
-        pstderr(string.format("I: end of child.", line))
+        PStdErr(string.format("I: end of child.", line))
         break
       elseif line:match("^-- ") then
-        pstderr(string.format("I: %s", line))
+        PStdErr(string.format("I: %s", line))
       else
         r = parse_ip_route(line)
         if r.prefix == "default" then

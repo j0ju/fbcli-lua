@@ -3,10 +3,10 @@
 
 return function()
   local _, scriptname = arg[0]:match('(.-)([^\\/]-%.?([^%.\\/]*))$')
-  pstderr("Usage: ")
-  pstderr("  ".. scriptname .." [obj] <action?> <options*>")
-  pstderr("")
-  pstderr([[
+  PStdErr("Usage: ")
+  PStdErr("  ".. scriptname .." [obj] <action?> <options*>")
+  PStdErr("")
+  PStdErr([[
   * login       - gets session id from FritzBox and outputs it to STDOUT
     - url         - see also environment FRITZBOX_URL
     - user        - see also environment FRITZBOX_USER
