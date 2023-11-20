@@ -1,0 +1,7 @@
+# adapt this settings and rename to dump.config
+
+# your FritzBox MAC
+fb_mac=00:02:de:ad:be:ef
+
+# your client MAC
+client_mac=00:fe:c0:1d:be:ef
