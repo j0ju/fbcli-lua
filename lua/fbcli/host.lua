@@ -35,7 +35,7 @@ function host.list(argv, i)
   local hostlist = {}
   local online
   for _, v in pairs({"active", "passive", "fbox"}) do
-    for _, h in pairs(r.data[v]) do repeat
+    for _, h in pairs(r.data[v]) do
       online = "no"
       if h.model == "active" then
         online = "yes"
@@ -49,10 +49,11 @@ function host.list(argv, i)
         dhcp = h.ipv4.dhcp or "(UNKNOWN)",
         online = online,
         port = h.port,
+        internal_name = h.UID,
+        last_used = ( ipv4 or { lastused = -1 } ).lastused,
       }
       table.add(hostlist, n)
-
-    until true end
+    end
   end
 
   if opts.sort == "name" then
@@ -71,10 +72,9 @@ end
 host.DEFAULT = host.list
 host.show = host.list
 
--- # TODO: not finish, Q: why is ther a confirmation in the API?
 function host.delete(argv, i)
   local opts = {
-    name = "",
+    name = argv[i] or "",
   }
   CLI.parse_into_table(opts, argv, i)
   if opts.name == "" then
@@ -85,27 +85,49 @@ function host.delete(argv, i)
   DieOnErr(err)
 
   -- only passive/offline devices can be deleted
+  local deleted_host = 0
   for _, h in pairs(r.data.passive) do
     if opts.name == h.name then
-      dump(h)
       r, err = FB.host.delete(FBhandle, h.UID, h.name)
-      DieOnErr(err)
+      if err then
+        return nil, { exitcode = 1, errmsg = string.format("error deleting host %s", h.name) }
+      end
+      print(string.format("I: deleted host %s", h.name))
+      deleted_host = deleted_host + 1
     end
   end
+  if deleted_host == 0 then
+    return nil, { exitcode = 1, errmsg = "no hosts deleted" }
+  else
+    print(string.format("I: deleted %d hosts", deleted_host))
+  end
 
-  return r, err
+  return nil, nil
 end
+host.remove = host.delete
+host.rm = host.delete
 
 -- # debugging aid
-function host.dump() -- dump return of fritzbox unmodified
-  local r, err = FB.host.list(FBhandle)
-  DieOnErr(err)
-  dump(r)
+function host.dump(argv, i) -- dump return of fritzbox unmodified
+  local opts = {
+    name = argv[i] or "",
+  }
+  CLI.parse_into_table(opts, argv, i)
 
-  -- # mesh dump #
+  local r, err = FB.host.list(FBhandle)
   --local r, err = FB.mesh.list(FBhandle)
-  --DieOnErr(err)
-  --dump(r)
+  DieOnErr(err)
+  if opts.name == "" then
+    dump(r)
+  else
+    for _, v in pairs({"active", "passive", "fbox"}) do
+      for _, h in pairs(r.data[v]) do
+        if opts.name == h.name then
+          dump(h)
+        end
+      end
+    end
+  end
 
   return r, err
 end

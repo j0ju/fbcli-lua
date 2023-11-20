@@ -444,10 +444,9 @@ function fb.host.delete(fbhandle, landevice, devname)
     --
     delete=landevice,
     devname=devname,
+    confirmed="",
   }
-  dump(args)
   local r, err = fb_POST_json_data_lua(fbhandle, "netDev", args)
-  dump(r)
   return r, err
 end
 
