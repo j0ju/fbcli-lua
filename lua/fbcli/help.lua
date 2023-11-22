@@ -53,6 +53,9 @@ return function()
     - passive     - list active or passive hosts (boolean: true)
     - sort        - sort options (default: none, use lower case coloumn name: name, mac, ipv4, port)
 
+  * host delete - delete a offlien/passiver host
+    - name        - host to be deleted
+
   * status
 
   ]])
