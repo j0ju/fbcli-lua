@@ -23,7 +23,9 @@ function host.list(argv, i)
     "name", "ipv4", "mac", "online", "port",
   }
 
-  if (not (opts.sort == "")) then
+  if (opts.sort == "") then
+    opts.sort = "ipv4"
+  else
     if table_display_opts[opts.sort] == nil then
       return nil, { exitcode = 1, errmsg = string.format("cannot sort for coloumn '%s'.", opts.sort) }
     end
