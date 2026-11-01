@@ -11,7 +11,8 @@ function host.list(argv, i)
     ethernet = true,
     sort = "",
   }
-  CLI.parse_into_table(opts, argv, i)
+  local _, err = CLI.parse_into_table(opts, argv, i)
+  DieOnErr(err)
 
   local table_display_opts = {
     name = { prefix = "-"},
@@ -36,27 +37,33 @@ function host.list(argv, i)
 
   local hostlist = {}
   local online
-  for _, v in pairs({"active", "passive", "fbox"}) do
-    for _, h in pairs(r.data[v]) do
+  for _, v in pairs({"active", "passive", "fbox"}) do repeat
+    if v == "passive" and not opts.passive then break end
+    if not (v == "passive") and not opts.active then break end
+    for _, h in pairs(r.data[v] or {}) do repeat
+      local port = h.port or ""
+      if port:find("^WLAN") and not opts.wifi then break end
+      if port:find("^LAN") and not opts.ethernet then break end
       online = "no"
       if h.model == "active" then
         online = "yes"
       elseif h.model == "fbox" then
         online = "yes"
       end
+      local ipv4 = h.ipv4 or {}
       local n = {
-        name = h.name,
-        mac = h.mac,
-        ipv4 = h.ipv4.ip or "(UNKNOWN)",
-        dhcp = h.ipv4.dhcp or "(UNKNOWN)",
+        name = h.name or "",
+        mac = h.mac or "",
+        ipv4 = ipv4.ip or "(UNKNOWN)",
+        dhcp = ipv4.dhcp or "(UNKNOWN)",
         online = online,
-        port = h.port,
+        port = port,
         internal_name = h.UID,
-        last_used = ( ipv4 or { lastused = -1 } ).lastused,
+        last_used = ipv4.lastused or -1,
       }
       table.add(hostlist, n)
-    end
-  end
+    until true end
+  until true end
 
   if opts.sort == "name" then
     table.sort(hostlist, function (a, b) return a.name < b.name end )
@@ -64,6 +71,8 @@ function host.list(argv, i)
     table.sort(hostlist, function (a, b) return a.mac < b.mac end )
   elseif opts.sort == "port" then
     table.sort(hostlist, function (a, b) return a.port < b.port end )
+  elseif opts.sort == "online" then
+    table.sort(hostlist, function (a, b) return a.online < b.online end )
   elseif opts.sort == "ipv4" then
     table.sort(hostlist, function (a, b) return IP.lesser_than(a.ipv4, b.ipv4) end)
   end
@@ -78,7 +87,8 @@ function host.delete(argv, i)
   local opts = {
     name = argv[i] or "",
   }
-  CLI.parse_into_table(opts, argv, i)
+  local _, err = CLI.parse_into_table(opts, argv, i)
+  DieOnErr(err)
   if opts.name == "" then
     return nil, { exitcode = 1, errmsg = "no hostname to delete given" }
   end
@@ -88,7 +98,7 @@ function host.delete(argv, i)
 
   -- only passive/offline devices can be deleted
   local deleted_host = 0
-  for _, h in pairs(r.data.passive) do
+  for _, h in pairs(r.data.passive or {}) do
     if opts.name == h.name then
       r, err = FB.host.delete(FBhandle, h.UID, h.name)
       if err then
@@ -123,7 +133,7 @@ function host.dump(argv, i) -- dump return of fritzbox unmodified
     dump(r)
   else
     for _, v in pairs({"active", "passive", "fbox"}) do
-      for _, h in pairs(r.data[v]) do
+      for _, h in pairs(r.data[v] or {}) do
         if opts.name == h.name then
           dump(h)
         end

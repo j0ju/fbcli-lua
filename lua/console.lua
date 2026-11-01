@@ -25,8 +25,8 @@ function console_table_dump(t, display_opts)
       order = order+1
     end
     for k, v in pairs(t) do
-      if #(v[f] or "(nil)") > opt.len then
-        opt.len = #(v[f] or "(nil)")
+      if #tostring(v[f] or "(nil)") > opt.len then
+        opt.len = #tostring(v[f] or "(nil)")
       end
     end
     heading[f] = opt.heading
@@ -38,12 +38,12 @@ function console_table_dump(t, display_opts)
   while t[i] do
     order = 1
     while display_opts[order] do
-      f = display_opts[order]
-      opt = display_opts[f]
+      local f = display_opts[order]
+      local opt = display_opts[f]
       if opt._fmt == nil then
         opt._fmt = " %".. (opt.prefix or "") .. opt.len .. opt.format
       end
-      io.write(string.format(opt._fmt, t[i][f]))
+      io.write(string.format(opt._fmt, tostring(t[i][f] or "(nil)")))
       order=order+1
     end
     io.write('\n')
