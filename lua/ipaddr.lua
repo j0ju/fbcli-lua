@@ -74,9 +74,14 @@ end
 --   out: {[1..8]=, cidr=}
 --        or nil on error
 local doctet_from_string = function(inp)
-  local inp = inp
+  local inp = inp or ""
   local doctet = {}
-  local i, _, o, token, outp, cidr = inp:find('^(.+)/(%d+)$')
+  local o, token
+  -- an IPv6 address has at least one ":"
+  if not inp:find(":") then
+    return nil
+  end
+  local i, _, outp, cidr = inp:find('^(.+)/(%d+)$')
   if not i then outp = inp end
 
   -- start parsing from the beginning
@@ -138,7 +143,7 @@ local doctet_from_string = function(inp)
 
   for o = 1, 8 do
     if doctet[o] == nil then
-      doctet[o] = "0"
+      doctet[o] = 0
     end
   end
   doctet.cidr = cidr
@@ -204,6 +209,22 @@ local cidr2netmask_v6_map = {
   [0] = 0, [1] = 32768, [2] = 49152, [3] = 57344, [4] = 61440, [5] = 63488, [6] = 64512, [7] = 65024,
   [8] = 65280, [9] = 65408, [10] = 65472, [11] = 65504, [12] = 65520, [13] = 65528, [14] = 65532, [15] = 65534,
 }
+-- bitwise and, uses LuaBitOp if available (not part of plain lua 5.1)
+local band = function(a, b)
+  a, b = tonumber(a), tonumber(b)
+  if bit then
+    return bit.band(a, b)
+  end
+  local r, v = 0, 1
+  while a > 0 and b > 0 do
+    if a % 2 == 1 and b % 2 == 1 then
+      r = r + v
+    end
+    a, b, v = math.floor(a / 2), math.floor(b / 2), v * 2
+  end
+  return r
+end
+
 function ipaddr.contains(net, ip)
   if type(net) == "table" then
     for _, n in pairs(net) do
@@ -246,7 +267,7 @@ function ipaddr.contains(net, ip)
       if tonumber(netmask_octet[i]) == 0 then
         break
       end
-      if not (bit.band(ip_octet[i], netmask_octet[i]) == tonumber(net_octet[i])) then
+      if not (band(ip_octet[i], netmask_octet[i]) == tonumber(net_octet[i])) then
         return false
       end
     end
@@ -269,7 +290,7 @@ function ipaddr.contains(net, ip)
         mask = cidr2netmask_v6_map[mask_cidr]
         mask_cidr = 0
       end
-      if not (bit.band(ip_doctet[i], mask) == net_doctet[i]) then
+      if not (band(ip_doctet[i], mask) == tonumber(net_doctet[i])) then
         return false
       end
     end
@@ -300,6 +321,9 @@ function ipaddr.lesser_than(a, b) -- numerical compare a < b
     a.octet = doctet_from_string(a.address)
     b.octet = doctet_from_string(b.address)
     max_octets = 8
+  else
+    -- neither IPv4 nor IPv6, e.g. "(UNKNOWN)": compare as strings
+    return tostring(a.address) < tostring(b.address)
   end
   for i = 1, max_octets do
     if tonumber(a.octet[i]) < tonumber(b.octet[i]) then
@@ -308,7 +332,7 @@ function ipaddr.lesser_than(a, b) -- numerical compare a < b
       return false
     end
   end
-  if a.cidr > b.cidr then -- smaller prefix wins
+  if tonumber(a.cidr) > tonumber(b.cidr) then -- smaller prefix wins
     return true
   end
   return false
