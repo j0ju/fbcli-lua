@@ -30,6 +30,10 @@ hosts = {
     "active": [
         dict(name="laptop", mac="AA:00:00:00:00:01", ipv4=dict(ip="192.168.178.20", dhcp="1", lastused=17),
              port="WLAN", UID="landevice1", model="active"),
+        dict(name="kid", mac="AA:00:00:00:00:04", ipv4=dict(ip="192.168.178.21", dhcp="1"),
+             port="LAN 2 mit 1 Gbit/s ", UID="landevice4", model="active"),
+        dict(name="adapter", mac="AA:00:00:00:00:05", ipv4=dict(ip="192.168.178.22", dhcp="1"),
+             port="LAN 3 mit 1 Gbit/s ", UID="landevice5", model="active"),
     ],
     "passive": [
         dict(name="old&box", mac="AA:00:00:00:00:02", ipv4=dict(ip="192.168.178.3"),
@@ -43,6 +47,79 @@ hosts = {
     ],
 }
 next_id = [10]
+
+# access profiles and settings of the "edit device" page (page=edit_device),
+# structure as captured in docs/dumps/fb_host_set.pcap.zst
+profiles = [
+    dict(value="filtprof1", text="Standard"),
+    dict(value="filtprof2", text="Gast"),
+    dict(value="filtprof3", text="Unbeschränkt"),
+    dict(value="filtprof1457", text="kein Internet"),
+]
+# older FRITZ!OS has a profile "Gesperrt", newer ones block the device instead;
+# only "kid" sees it, to test both variants with one fake box
+profiles_kid = profiles + [dict(value="filtprof4", text="Gesperrt")]
+settings = {
+    uid: dict(profile="filtprof1", blocked=False, realtime=False, static_dhcp=False,
+              allow_forwarding=False, auto_wakeup=False)
+    for uid in ("landevice1", "landevice2", "landevice3", "landevice4", "landevice5")
+}
+settings["landevice1"]["static_dhcp"] = True
+# fields the web interface always sends for a plain host
+required_fields = ["dev_name", "internetdetail", "allow_pcp_and_upnp", "dev_ip0", "dev_ip1", "dev_ip2",
+                   "dev_ip3", "dev_ip", "static_dhcp", "interface_id1", "interface_id2", "interface_id3",
+                   "interface_id4", "auto_wakeup", "back_to_page", "dev", "apply"]
+
+
+def find_host(uid):
+    for hl in hosts.values():
+        for h in hl:
+            if h["UID"] == uid:
+                return h
+    return None
+
+
+def edit_device_vars(uid):
+    h, st = find_host(uid), settings[uid]
+    plist = profiles_kid if h["name"] == "kid" else profiles
+    rights = dict(msgid="blocked", msg="Gesperrt") if st["blocked"] else dict(msgid="unlimited", msg="")
+    dev = {
+        "UID": uid, "devType": "lan", "mac": h["mac"], "isGuest": False,
+        "page": {"own": False, "editable": True},
+        "name": {"displayName": h["name"], "editable": True},
+        "realtime": {"state": st["realtime"]},
+        "wakeOnLan": {"show": True, "checked": st["auto_wakeup"]},
+        "ipv4": {"show": True, "editable": True,
+                 "current": {"ip": h.get("ipv4", {}).get("ip", "192.168.178.99")},
+                 "dhcp": {"show": True, "alwaysSameIp": st["static_dhcp"]},
+                 "portForwarding": {"show": True, "allowForwarding": st["allow_forwarding"]}},
+        "ipv6": {"show": True, "iface": {"show": True, "ifaceid": "::48cd:3fda:825b:6b38"}},
+        "netAccess": {"show": True, "connectionAssignment": [],
+                      "kisi": {"show": True, "selectedRights": rights, "isDeviceBlocked": st["blocked"],
+                               "profiles": {"list": plist, "selected": st["profile"]}}},
+    }
+    if h["name"] == "adapter":
+        dev["plc"] = {"enabled": True}
+    return {"ipv6_enabled": True, "ipMask": "255.255.255.0", "backToPage": "netDev", "dev_node": uid, "dev": dev}
+
+
+def edit_device_apply(f):
+    uid = f.get("dev")
+    missing = [k for k in required_fields if k not in f]
+    if f.get("internetdetail") != "blocked" and "kisi_profile" not in f:
+        missing.append("kisi_profile")
+    if uid not in settings or missing:
+        print("REJECT edit_device, missing:", missing, file=sys.stderr, flush=True)
+        return {"data": {"apply": "error", "missing": missing}}
+    st = settings[uid]
+    st["blocked"] = f["internetdetail"] == "blocked"
+    st["realtime"] = f["internetdetail"] == "realtime"
+    st["profile"] = f.get("kisi_profile", st["profile"])
+    st["static_dhcp"] = f["static_dhcp"] == "on"
+    st["allow_forwarding"] = f["allow_pcp_and_upnp"] == "on"
+    st["auto_wakeup"] = f["auto_wakeup"] == "on"
+    find_host(uid)["name"] = f["dev_name"]
+    return {"data": {"redirect": {"back": True}, "apply": "ok"}}
 
 
 def session_info(sid):
@@ -117,6 +194,12 @@ class Handler(BaseHTTPRequestHandler):
             if "delete" in f:
                 hosts["passive"][:] = [h for h in hosts["passive"] if h["UID"] != f["delete"]]
             return self.reply(json.dumps({"data": hosts}))
+        if page == "edit_device":
+            if f.get("apply") == "true":
+                return self.reply(json.dumps(edit_device_apply(f)))
+            if f.get("dev") not in settings:
+                return self.reply(json.dumps({"data": {}}))
+            return self.reply(json.dumps({"pid": "edit_device", "data": {"vars": edit_device_vars(f["dev"])}}))
         if page == "netMoni":
             return self.reply(json.dumps({"data": {"connections": [{"name": "internet", "connected": True}]}}))
         self.reply("{}", code=404)

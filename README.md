@@ -142,6 +142,22 @@ Active hosts cannot be deleted.
 
  * `name <name>`
 
+### fbcli host HOST filter
+
+Sets the access profile ("Zugangsprofil", Internet > Filter > Kindersicherung) of a host.
+`HOST` is a host name, MAC or IPv4 address, as shown by `host list`.
+
+ * `allow` - access profile "Unbeschränkt"
+ * `disallow` - access profile "Gesperrt"; FRITZ!OS versions without such a profile
+   block the internet usage of the host instead ("Internetnutzung gesperrt")
+ * `reset` - access profile "Standard", also unblocks the host
+ * `show` (default) - shows profile and internet usage (`unlimited`, `realtime`, `blocked`)
+
+Only plain hosts are supported, Powerline adapters and hosts with VPN settings are refused,
+as the FritzBox expects all settings of the edit device page to be sent.
+Host names that are also `host` actions or `host list` options (eg. `dump`, `wifi`)
+have to be given as MAC or IP address.
+
 ### fbcli host dump
 
 Debugging aid: dumps the raw reply of the FritzBox for all hosts or a host given by `name`.
@@ -207,6 +223,16 @@ fbcli route sync v4via 192.168.178.2 v6via fe80::2 follow noop
  NAME                IPV4               MAC ONLINE PORT
  fritz.box  192.168.178.1 AA:00:00:00:00:00    yes
  laptop    192.168.178.20 AA:00:00:00:00:01    yes WLAN
+```
+
+### Host filter
+
+```
+fbcli host laptop filter allow
+fbcli h laptop f d
+fbcli host AA:00:00:00:00:04 filter reset
+# fbcli host laptop filter
+laptop profile Standard internet unlimited
 ```
 
 ### Host delete

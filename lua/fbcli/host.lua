@@ -85,7 +85,6 @@ function host.list(argv, i)
   console_table_dump(hostlist, table_display_opts)
   return r, err
 end
-host.DEFAULT = host.list
 host.show = host.list
 
 function host.delete(argv, i)
@@ -123,6 +122,130 @@ function host.delete(argv, i)
 end
 host.remove = host.delete
 host.rm = host.delete
+
+-- Helper:
+--   finds exactly one host by name, MAC or IPv4 address in the host list
+local host_find = function(r, name)
+  local found = {}
+  for _, v in pairs({"active", "passive", "fbox"}) do
+    for _, h in pairs(r.data[v] or {}) do
+      if h.name == name or (h.mac or ""):upper() == name:upper() or (h.ipv4 or {}).ip == name then
+        table.add(found, h)
+      end
+    end
+  end
+  if #found == 0 then
+    return nil, { exitcode = 1, errmsg = string.format("no host '%s' found", name) }
+  elseif #found > 1 then
+    return nil, { exitcode = 1, errmsg = string.format("host name '%s' is ambiguous (%d hosts), use MAC or IP address", name, #found) }
+  end
+  return found[1], nil
+end
+
+-- access profiles, by names in the web interface (german, english), with the
+-- IDs of the built-in profiles as fallback
+local filter_profiles = {
+  allow = { names = { "Unbeschränkt", "Unrestricted" }, id = "filtprof3" },
+  reset = { names = { "Standard" }, id = "filtprof1" },
+  disallow = { names = { "Gesperrt", "Blocked" } },
+}
+
+-- Helper:
+--   returns the value of a profile by name, or the fallback id if present
+local profile_find = function(profiles, p)
+  for _, n in ipairs(p.names) do
+    for _, item in ipairs(profiles.list or {}) do
+      if item.text == n then
+        return item.value
+      end
+    end
+  end
+  for _, item in ipairs(profiles.list or {}) do
+    if item.value == p.id then
+      return item.value
+    end
+  end
+  return nil
+end
+
+-- Helper:
+--   name of a profile by value
+local profile_name = function(profiles, value)
+  for _, item in ipairs(profiles.list or {}) do
+    if item.value == value then
+      return item.text
+    end
+  end
+  return value
+end
+
+-- host <host> filter [allow|disallow|reset|show]
+--   allow    - access profile "Unbeschränkt"
+--   disallow - access profile "Gesperrt", newer FRITZ!OS versions have no such
+--              profile, internet usage of the host is blocked instead
+--   reset    - access profile "Standard", unblocks internet usage
+function host.filter(argv, i)
+  local name = argv[i] or ""
+  if name == "" then
+    return nil, { exitcode = 1, errmsg = "no host given" }
+  end
+  local op, err = CLI.match({ "allow", "disallow", "reset", "show" }, argv[i+2] or "show")
+  DieOnErr(err)
+  if op == nil then
+    return nil, { exitcode = 1, errmsg = string.format("unknown filter action '%s', use allow, disallow, reset or show", argv[i+2]) }
+  end
+
+  local r, err = FB.host.list(FBhandle)
+  DieOnErr(err)
+  local h, err = host_find(r, name)
+  DieOnErr(err)
+
+  local settings, err = FB.host.get(FBhandle, h.UID)
+  DieOnErr(err)
+  local vars = settings.data.vars
+  local form, err = FB.host.form(vars)
+  DieOnErr(err)
+  local profiles = vars.dev.netAccess.kisi.profiles
+
+  if op == "show" then
+    print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, form.kisi_profile), form.internetdetail))
+    return nil, nil
+  end
+
+  -- leave a blocked host, keep "prioritised"
+  if form.internetdetail == "blocked" then
+    form.internetdetail = "unlimited"
+  end
+
+  local profile = profile_find(profiles, filter_profiles[op])
+  if profile then
+    form.kisi_profile = profile
+  elseif op == "disallow" then
+    form.internetdetail = "blocked"
+  else
+    return nil, { exitcode = 1, errmsg = string.format("no access profile '%s' found", filter_profiles[op].names[1]) }
+  end
+
+  local _, err = FB.host.set(FBhandle, h.UID, form)
+  DieOnErr(err)
+  if form.internetdetail == "blocked" then
+    print(string.format("I: host %s: internet usage blocked", h.name))
+  else
+    print(string.format("I: host %s: profile %s", h.name, profile_name(profiles, form.kisi_profile)))
+  end
+  return nil, nil
+end
+
+-- "host <host> filter ..." is not an action, everything else lists hosts,
+-- options of "host list" win (eg. "host wifi f" is "host list wifi false")
+local host_list_options = { "active", "passive", "wifi", "ethernet", "sort" }
+function host.DEFAULT(argv, i)
+  local opt, opt_err = CLI.match(host_list_options, argv[i])
+  if opt == nil and opt_err == nil and argv[i+1] and CLI.match({ "filter" }, argv[i+1]) then
+    return host.filter(argv, i)
+  end
+  return host.list(argv, i)
+end
 
 -- # debugging aid
 function host.dump(argv, i) -- dump return of fritzbox unmodified

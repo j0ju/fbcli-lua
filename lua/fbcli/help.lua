@@ -60,6 +60,13 @@ return function()
     - sort        - sort by lower case coloumn name: name, mac, ipv4,
                     online, port (default: ipv4)
 
+  * host HOST filter - set the access profile of HOST (name, MAC or IPv4)
+    - allow       - profile "Unbeschränkt"
+    - disallow    - profile "Gesperrt", or block internet usage if there is
+                    no such profile
+    - reset       - profile "Standard", unblocks the host
+    - show        - show profile and internet usage (default)
+
   * host delete - delete an offline/passive host
     - name        - host to be deleted
 

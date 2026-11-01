@@ -77,6 +77,17 @@ expect_order() {
   fi
 }
 
+# expect_saved <fixed string> - the last settings saved on the fake box contain it
+expect_saved() {
+  current="saved settings ($1)"
+  grep "'page': 'edit_device'" "$tmp/server.log" | grep "'apply': 'true'" | tail -1 > "$tmp/out"
+  if grep -qF -- "$1" "$tmp/out"; then
+    passed=$((passed + 1))
+  else
+    fail "lacks '$1'"
+  fi
+}
+
 # --- syntax check
 for f in "$tests_dir"/../lua/*.lua "$tests_dir"/../lua/fbcli/*.lua "$tests_dir"/../lua/fbcli/route/*.lua; do
   current="luac -p $f"
@@ -171,6 +182,49 @@ run 1 route sync v4via 192.168.178.2 policy x noop
 expect "policy must be 'allow' or 'deny'"
 run 1 nonsense
 expect "Usage:"
+
+# --- host filter (access profiles)
+run 0 host laptop filter
+expect "laptop profile Standard internet unlimited"
+run 0 host laptop filter allow
+expect "I: host laptop: profile Unbeschränkt"
+expect_saved "'kisi_profile': 'filtprof3'"
+expect_saved "'internetdetail': 'unlimited'"
+# unrelated settings are sent unchanged
+expect_saved "'static_dhcp': 'on'"
+expect_saved "'dev_name': 'laptop'"
+expect_saved "'interface_id4': '6b38'"
+run 0 h laptop f
+expect "laptop profile Unbeschränkt internet unlimited"
+# no profile "Gesperrt": the host is blocked
+run 0 h laptop f d
+expect "I: host laptop: internet usage blocked"
+expect_saved "'internetdetail': 'blocked'"
+run 0 h laptop f
+expect "internet blocked"
+run 0 h laptop f r
+expect "I: host laptop: profile Standard"
+expect_saved "'kisi_profile': 'filtprof1'"
+expect_saved "'internetdetail': 'unlimited'"
+# with a profile "Gesperrt" it is used
+run 0 host kid filter disallow
+expect "I: host kid: profile Gesperrt"
+expect_saved "'kisi_profile': 'filtprof4'"
+expect_saved "'internetdetail': 'unlimited'"
+run 0 host AA:00:00:00:00:04 filter reset
+expect "I: host kid: profile Standard"
+run 0 host 192.168.178.21 filter
+expect "kid profile Standard internet unlimited"
+run 1 host adapter filter allow
+expect "Powerline or VPN settings, this is not supported"
+run 1 host nobody filter allow
+expect "no host 'nobody' found"
+run 1 host laptop filter x
+expect "unknown filter action 'x'"
+# "host list" options win over host names
+run 0 h wifi f
+expect_not "laptop"
+expect "kid"
 
 run 0 host del 'old&box'
 expect "I: deleted host old&box"

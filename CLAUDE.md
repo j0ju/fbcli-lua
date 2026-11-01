@@ -26,8 +26,15 @@ User-facing docs: `README.md`. Usage text: `lua/fbcli/help.lua` (keep both in sy
   action.
   Also defines globals `PStdErr` and `DieOnErr`.
 - `lua/fritzbox.lua` – API layer (`FB`): `login`, `route.{list,add,delete}`,
-  `route.ipv4.*`/`route.ipv6.*`, `host.{list,delete}`, `mesh.list`, `status`.
-  All requests go through `fb_POST_json_data_lua`, which URL-encodes form values.
+  `route.ipv4.*`/`route.ipv6.*`, `host.{list,delete,get,form,set}`, `mesh.list`,
+  `status`. All requests go through `fb_POST_json_data_lua`, which URL-encodes
+  form values.
+- Settings pages (eg. `edit_device`, used by `host HOST filter`) are saved by
+  posting the *whole* form, as the web UI does; fields left out may be reset.
+  `fb.host.form()` rebuilds the form from the read reply, following the page's
+  JS (`docs/dumps/fb_host_set.md`), and refuses device types whose form is not
+  fully known. Keep that rule for new settings: read, change one field, write
+  back everything, and document the form under `docs/dumps/`.
 - `lua/fbcli/*.lua` – subcommands. `route/sync.lua` forks: the child prints
   `ip -4/-6 route show table X`, then (with `follow`) execs `ip monitor route`;
   the parent polls the pipe, queues events per prefix and flushes on silence.
@@ -39,8 +46,9 @@ User-facing docs: `README.md`. Usage text: `lua/fbcli/help.lua` (keep both in sy
   `simplexml.lua`, `dump.lua` (`dump()` pretty printer), `console.lua`
   (`console_table_dump`), `luautil.lua` (`table.size`, `table.add`).
 - `docs/dumps/` – tcpdump tooling and `*.pcap.zst` captures of web UI actions;
-  the source of truth for request/response formats. Read with
-  `zstdcat f.pcap.zst | strings` or `tcpdump -r`. Uncompressed `*.pcap` are ignored.
+  the source of truth for request/response formats. Read whole requests and
+  replies with `zstdcat f.pcap.zst > /tmp/f.pcap && python3 docs/dumps/pcap-http.py /tmp/f.pcap`;
+  `*.md` next to a capture describe it. Uncompressed `*.pcap` are ignored.
 
 ## Conventions
 
@@ -67,7 +75,8 @@ tests/run.sh            # VERBOSE=1 shows every command and its output
 
 - `tests/run.sh` – syntax-checks all Lua files, starts `tests/fakefb.py` on
   `127.0.0.1:$PORT` (default 18080), runs fbcli commands in order and checks
-  exit codes and output with `run <rc> <args…>`, `expect` and `expect_not`.
+  exit codes and output with `run <rc> <args…>`, `expect`, `expect_not`,
+  `expect_order`, and the last saved `edit_device` form with `expect_saved`.
   All tests share one fake box, so order matters: later tests see what
   earlier ones changed.
 - `tests/fakefb.py` – fake FritzBox: `login_sid.lua` (user `root`, password

@@ -476,6 +476,129 @@ function fb.host.delete(fbhandle, landevice, devname)
   return r, err
 end
 
+-- fetches the settings of a host as shown on its "edit device" page,
+-- device settings are in .data.vars.dev
+function fb.host.get(fbhandle, landevice)
+  local args = {
+    xhr="1",
+    xhrId="all",
+    backToPage="netDev",
+    dev=landevice,
+  }
+  local r, err = fb_POST_json_data_lua(fbhandle, "edit_device", args)
+  if err then
+    return nil, err
+  end
+  if not (type(r) == "table" and type(r.data) == "table" and type(r.data.vars) == "table" and type(r.data.vars.dev) == "table") then
+    return nil, { exitcode = 1, errmsg = string.format("no settings found for host %s", landevice) }
+  end
+  return r, nil
+end
+
+-- Helper:
+--   checkbox values as sent by the web interface
+local onoff = function(b)
+  if b then return "on" end
+  return "off"
+end
+
+-- builds the form of the "edit device" page from the settings of fb.host.get,
+-- the web interface always sends the full form, fields missing in the form
+-- might be reset by the FritzBox.
+-- Only plain hosts are supported, devices with additional settings
+-- (Powerline, VPN) are refused, as their form is not known completely.
+function fb.host.form(vars)
+  local dev = vars.dev
+  local na = dev.netAccess or {}
+  local kisi = na.kisi or {}
+  local name = (dev.name or {}).displayName or dev.UID or "?"
+
+  if not (dev.page and dev.page.editable) then
+    return nil, { exitcode = 1, errmsg = string.format("settings of host %s are not editable", name) }
+  end
+  if dev.plc or na.vpnUser then
+    return nil, { exitcode = 1, errmsg = string.format("host %s has Powerline or VPN settings, this is not supported", name) }
+  end
+  if dev.isGuest or not kisi.show or not kisi.profiles or kisi.guest then
+    return nil, { exitcode = 1, errmsg = string.format("host %s has no access profile (guest?)", name) }
+  end
+
+  local form = {}
+  if dev.name and dev.name.editable then
+    form.dev_name = dev.name.displayName
+  end
+
+  -- internet usage: "unlimited" (by profile), "realtime" (prioritised) or "blocked"
+  if (kisi.selectedRights or {}).msgid == "blocked" then
+    form.internetdetail = "blocked"
+  elseif dev.realtime and dev.realtime.state then
+    form.internetdetail = "realtime"
+  else
+    form.internetdetail = "unlimited"
+  end
+  form.kisi_profile = kisi.profiles.selected
+
+  if na.connectionAssignment and na.connectionAssignment.show then
+    form.connection_assignment = na.connectionAssignment.use
+  end
+
+  local ipv4 = dev.ipv4 or {}
+  if ipv4.portForwarding and ipv4.portForwarding.show then
+    form.allow_pcp_and_upnp = onoff(ipv4.portForwarding.allowForwarding)
+  end
+  if ipv4.show and ipv4.editable and ipv4.current and ipv4.current.ip then
+    local o = { ipv4.current.ip:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$") }
+    if #o == 4 then
+      form.dev_ip0, form.dev_ip1, form.dev_ip2, form.dev_ip3 = o[1], o[2], o[3], o[4]
+      form.dev_ip = ipv4.current.ip
+    end
+  end
+  if ipv4.dhcp and ipv4.dhcp.show then
+    form.static_dhcp = onoff(ipv4.dhcp.alwaysSameIp)
+  end
+
+  local ipv6 = dev.ipv6 or {}
+  if ipv6.iface and ipv6.iface.show then
+    -- "::48cd:3fda:825b:6b38" -> interface_id1..4, missing groups are 0
+    local groups = {}
+    for g in (ipv6.iface.ifaceid or ""):gsub("^::", ""):gmatch("[^:]+") do
+      table.add(groups, g)
+    end
+    while #groups < 4 do
+      table.insert(groups, 1, "0")
+    end
+    for n = 1, 4 do
+      form["interface_id" .. n] = groups[#groups - 4 + n]
+    end
+  end
+
+  if dev.wakeOnLan and dev.wakeOnLan.show then
+    form.auto_wakeup = onoff(dev.wakeOnLan.checked)
+  end
+  return form, nil
+end
+
+-- saves the settings of a host, "form" from fb.host.form
+function fb.host.set(fbhandle, landevice, form)
+  local args = {
+    xhr="1",
+    back_to_page="netDev",
+    dev=landevice,
+    apply="true",
+  }
+  for k, v in pairs(form) do
+    args[k] = v
+  end
+  local r, err = fb_POST_json_data_lua(fbhandle, "edit_device", args)
+  if err then
+    return nil, err
+  end
+  if not (type(r) == "table" and type(r.data) == "table" and r.data.apply == "ok") then
+    return nil, { exitcode = 1, errmsg = string.format("FritzBox did not accept the settings for host %s", landevice) }
+  end
+  return r, nil
+end
+
 function fb.mesh.list(fbhandle)
   local args = {
     xhr="1",
