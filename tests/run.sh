@@ -66,6 +66,17 @@ expect_not() {
   fi
 }
 
+# expect_order <first> <second> - both in last output, <first> on an earlier line
+expect_order() {
+  a="$(grep -nF -- "$1" "$tmp/out" | head -1 | cut -d: -f1)"
+  b="$(grep -nF -- "$2" "$tmp/out" | head -1 | cut -d: -f1)"
+  if [ -n "$a" ] && [ -n "$b" ] && [ "$a" -lt "$b" ]; then
+    passed=$((passed + 1))
+  else
+    fail "'$1' not before '$2'"
+  fi
+}
+
 # --- syntax check
 for f in "$tests_dir"/../lua/*.lua "$tests_dir"/../lua/fbcli/*.lua "$tests_dir"/../lua/fbcli/route/*.lua; do
   current="luac -p $f"
@@ -131,6 +142,36 @@ run 0 host list wifi no
 expect_not "laptop"
 expect "noip"
 
+# --- abbreviations
+run 0 h l s ip
+expect_order "old&box" "laptop"
+run 0 h l s n
+expect_order "laptop" "old&box"
+run 0 h l w n
+expect_not "laptop"
+expect "noip"
+run 0 h p n
+expect "laptop"
+expect_not "old&box"
+run 0 h l p n w no
+expect "fritz.box"
+expect_not "laptop"
+run 0 h l a d
+expect "old&box"
+expect_not "laptop"
+run 1 h l s x
+expect "cannot sort for coloumn 'x'"
+run 1 ro s
+expect "'s' is ambiguous, could be: show, sync"
+run 0 r sh
+expect "name route0"
+run 1 route sync v4via 192.168.178.2 v 1.2.3.4 noop
+expect "'v' is ambiguous, could be: v4via, v6via"
+run 1 route sync v4via 192.168.178.2 policy x noop
+expect "policy must be 'allow' or 'deny'"
+run 1 nonsense
+expect "Usage:"
+
 run 0 host del 'old&box'
 expect "I: deleted host old&box"
 run 1 host del laptop
@@ -150,6 +191,11 @@ expect "would add route 2001:db8:1::/48 via fe80::2"
 expect_not "172.16.0.0/12"
 expect_not "fe80::/64"
 expect_not "default"
+
+run 0 r sy v4 192.168.178.2 f pm 300 pc d al 10.0.0.0/8 n ip "$tests_dir/fake-ip"
+expect "would add route 10.2.0.0/24 via 192.168.178.2"
+expect "would add route 10.3.0.0/24 via 192.168.178.2"
+expect_not "172.16.0.0/12"
 
 run 0 route sync v4via 192.168.178.2 follow pollms 300 noop ip "$tests_dir/fake-ip"
 expect "would add route 10.3.0.0/24 via 192.168.178.2"

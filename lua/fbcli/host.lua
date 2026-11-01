@@ -27,9 +27,14 @@ function host.list(argv, i)
   if (opts.sort == "") then
     opts.sort = "ipv4"
   else
-    if table_display_opts[opts.sort] == nil then
+    local columns = {}
+    for _, c in ipairs(table_display_opts) do table.add(columns, c) end
+    local column, err = CLI.match(columns, opts.sort)
+    DieOnErr(err)
+    if column == nil then
       return nil, { exitcode = 1, errmsg = string.format("cannot sort for coloumn '%s'.", opts.sort) }
     end
+    opts.sort = column
   end
 
   local r, err = FB.host.list(FBhandle)

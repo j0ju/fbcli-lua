@@ -6,6 +6,9 @@ return function()
   PStdErr("Usage: ")
   PStdErr("  ".. scriptname .." [obj] <action?> <options*>")
   PStdErr("")
+  PStdErr("  Names and values can be abbreviated if unique, eg. 'h l s ip' for")
+  PStdErr("  'host list sort ipv4'. Booleans: yes|no|true|false|enable|disable|1|0")
+  PStdErr("")
   PStdErr([[
   * login       - gets session id from FritzBox and outputs it to STDOUT
     - url         - see also environment FRITZBOX_URL

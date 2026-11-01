@@ -10,11 +10,20 @@ User-facing docs: `README.md`. Usage text: `lua/fbcli/help.lua` (keep both in sy
   `package.path`, defines globals `CLI`, `IP`, `FB`, `FBcli`, `FBhandle`
   (`url`/`sid` from `FRITZBOX_URL`/`FRITZBOX_SESSION`), dispatches via `CLI.action`.
 - `lua/CLI.lua` – dispatcher over the nested `FBcli` table; a table key is a
-  command, a function is an action, `DEFAULT` is the fallback. Abbreviations match
-  by regex (first char required, the rest optional) and pick the first `pairs()`
-  hit, so ambiguous prefixes are non-deterministic.
+  command, a function is an action, `DEFAULT` is the fallback (also used, with
+  the remaining argv as options, when no action matches). Keys starting with an
+  uppercase letter are internal and never matched.
+  `CLI.match(keys, input)` does all abbreviation matching: an exact match wins,
+  otherwise the input must keep the first character and the rest must appear in
+  order (`lst` → `list`); returns `key`, `nil, nil` (no match) or `nil, err`
+  (ambiguous). Keys in `CLI.exact` (`help`) only match in full. When you add a
+  command or option, check that the abbreviations users already type (e.g.
+  `h` → `host`, `l` → `list`, `s` → `sort`) still resolve, and add a test.
   `CLI.parse_into_table(defaults, argv, i)` infers option types from the default
-  value: string, number, boolean (value optional), table (repeatable).
+  value: string, number, boolean (value optional, abbreviated words like `n`
+  are accepted unless they match an option name), table (repeatable). Choice
+  values (`host list sort`, `route sync policy`) go through `CLI.match` in the
+  action.
   Also defines globals `PStdErr` and `DieOnErr`.
 - `lua/fritzbox.lua` – API layer (`FB`): `login`, `route.{list,add,delete}`,
   `route.ipv4.*`/`route.ipv6.*`, `host.{list,delete}`, `mesh.list`, `status`.

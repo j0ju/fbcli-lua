@@ -44,8 +44,12 @@ chmod 0755 /usr/local/bin/fbcli
 ## Usage
 
 This utility behaves a bit like `ip` from iproute2 suite.
-Objects, actions and option names can be abbreviated by leaving out characters, eg. `fbcli ro sh`
-is `fbcli route show`. Ambiguous abbreviations (`s` could be `show` or `sync`) pick any match.
+Objects, actions, option names and values (booleans, `sort`, `policy`) can be abbreviated
+as long as the abbreviation is unique. An abbreviation keeps the first character and may
+leave out any of the following ones, eg. `fbcli h l s ip` is `fbcli host list sort ipv4`,
+`fbcli h l w n` is `fbcli host list wifi no`. An exact name always wins,
+an ambiguous abbreviation is an error (`fbcli route s` could be `show` or `sync`).
+`help` is never abbreviated, so `h` is `host`.
 Boolean options can be given without a value (`true`) or with one of
 `yes|no|1|0|true|false|enable|disable`.
 

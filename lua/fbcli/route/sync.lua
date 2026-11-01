@@ -88,6 +88,13 @@ local fbcli_route_sync = function(argv, i)
   local _, err = CLI.parse_into_table(args, argv, i)
   DieOnErr(err)
   args.pollms = tonumber(args.pollms) -- ensure this is a number
+  local policy, err = CLI.match({ "allow", "deny" }, args.policy)
+  DieOnErr(err)
+  if policy == nil then
+    PStdErr(string.format("E: fbcli_route_sync: policy must be 'allow' or 'deny', not '%s'", args.policy))
+    os.exit(1)
+  end
+  args.policy = policy
   if args.table == "" then args.table = "main" end
   if FBcli.verbose then dump(args) end
 
