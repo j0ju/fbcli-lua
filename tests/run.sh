@@ -239,6 +239,14 @@ run 0 host noip filter allow
 expect "I: host noip: unblocked"
 expect "I: host noip: profile Unbeschränkt"
 expect_saved "'internetdetail': 'realtime'"
+# the unlock request as captured in docs/dumps/fb_kindersicherung_lock_unlock.md
+current="unlock request"
+grep "^REQ PUT" "$tmp/server.log" | tail -1 > "$tmp/out"
+if grep -qxF 'REQ PUT /api/v0/generic/user/user/user3 {"disallowed":"0"}' "$tmp/out"; then
+  passed=$((passed + 1))
+else
+  fail "unexpected unlock request"
+fi
 run 0 host noip filter
 expect "noip profile Unbeschränkt internet realtime"
 run 0 host noip filter reset

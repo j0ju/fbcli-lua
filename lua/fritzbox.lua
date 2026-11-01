@@ -146,6 +146,43 @@ local fb_POST_data_lua = function(fbhandle, page, args)
 end
 
 -- Helper:
+--   calls the REST API of newer FRITZ!OS versions (/api/v0/...), as the web
+--   interface does: session id in the AUTHORIZATION header, JSON bodies
+local fb_REST = function(fbhandle, method, path, data)
+  if fb.verbose then
+    PStdErr(string.format("I: fb_REST(%s %s)", method, path))
+  end
+  local body = ""
+  if data then
+    body = JSON:encode(data)
+  end
+  local resp = {}
+  local url = fbhandle.url .. "/api/v0/" .. path
+  local b, code = http.request {
+    url = url,
+    method = method,
+    source = ltn12.source.string(body),
+    headers = {
+      ["AUTHORIZATION"] = "AVM-SID " .. tostring(fbhandle.sid),
+      ["Content-Type"] = "application/json",
+      ["Content-Length"] = #body,
+    },
+    sink = ltn12.sink.table(resp)
+  }
+  if b == nil then
+    return nil, { errmsg = string.format("HTTP call %s %s failed: %s", method, url, tostring(code)), exitcode = 1 }
+  end
+  if not (code == 200) then
+    return nil, { code = code, exitcode = 1, errmsg = string.format("HTTP call %s %s unsuccessful %s", method, url, tostring(code)) }
+  end
+  local ok, r = pcall(JSON.decode, JSON, table.concat(resp))
+  if not ok or r == nil then
+    return nil, { exitcode = 1, errmsg = string.format("cannot decode JSON reply of %s %s: %s", method, url, tostring(r)) }
+  end
+  return r, nil
+end
+
+-- Helper:
 --   fetches a page of data.lua, returns the decoded JSON reply
 local fb_POST_json_data_lua = function(fbhandle, page, args)
   local body, err = fb_POST_data_lua(fbhandle, page, args)
@@ -590,16 +627,18 @@ function fb.host.form(vars)
   return form, nil
 end
 
--- internet usage of a host from the settings of fb.host.get:
+-- internet usage of a host from the settings of fb.host.get and the
+-- parental control user of fb.host.user (optional, nil on older FRITZ!OS):
 --   "unlimited", "realtime" (prioritised), "blocked" (internet usage blocked
 --   or device lock of the parental control list) or "ipconflict" (blocked in
 --   the home network, IP address already in use)
-function fb.host.internet(vars)
+function fb.host.internet(vars, user)
   local dev = vars.dev
   local kisi = (dev.netAccess or {}).kisi or {}
   if kisi.showWarning then
     return "ipconflict"
-  elseif (kisi.selectedRights or {}).msgid == "blocked" or kisi.isDeviceBlocked then
+  elseif (kisi.selectedRights or {}).msgid == "blocked" or kisi.isDeviceBlocked
+      or (user and user.disallowed == "1") then
     return "blocked"
   elseif dev.realtime and dev.realtime.state then
     return "realtime"
@@ -607,18 +646,38 @@ function fb.host.internet(vars)
   return "unlimited"
 end
 
+-- parental control user of a host (REST API, newer FRITZ!OS versions),
+-- every host has one, eg.
+--   { UID = "user8628", landeviceUID = "landevice2959", disallowed = "0",
+--     filter_profile_UID = "filtprof3", ... }
+function fb.host.user(fbhandle, landevice)
+  local r, err = fb_REST(fbhandle, "GET", "generic/user")
+  if err then
+    return nil, err
+  end
+  for _, u in ipairs(r.user or {}) do
+    if u.landeviceUID == landevice then
+      return u, nil
+    end
+  end
+  return nil, { exitcode = 1, errmsg = string.format("no parental control user found for host %s", landevice) }
+end
+
 -- (un)locks the internet access of a host, the device lock of the parental
--- control list ("Internetzugang sperren und entsperren", page kidLis).
--- The request is taken from the page's JS (newval.submit), it is not in the
--- captures yet; the reply is HTML, check the result with fb.host.get.
+-- control list ("Internetzugang sperren und entsperren"), see
+-- docs/dumps/fb_kindersicherung_lock_unlock.md
 function fb.host.lock(fbhandle, landevice, blocked)
-  local args = {
-    xhr="1",
-    toBeBlocked=landevice,
-    blocked=tostring(blocked == true),
-  }
-  local _, err = fb_POST_data_lua(fbhandle, "kidLis", args)
-  return (err == nil), err
+  local u, err = fb.host.user(fbhandle, landevice)
+  if err then
+    return nil, err
+  end
+  local disallowed = "0"
+  if blocked then disallowed = "1" end
+  local _, err = fb_REST(fbhandle, "PUT", "generic/user/user/" .. u.UID, { disallowed = disallowed })
+  if err then
+    return nil, err
+  end
+  return true, nil
 end
 
 -- saves the settings of a host, "form" from fb.host.form

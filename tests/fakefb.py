@@ -2,8 +2,9 @@
 # LICENSE: GPL v2, see lua/LICENSE.txt
 #
 # Minimal fake FritzBox web interface for testing fbcli without a real box.
-# Mimics /login_sid.lua and the /data.lua pages used by lua/fritzbox.lua,
-# keeps state in memory and logs every request to stderr ("REQ ...").
+# Mimics /login_sid.lua, the /data.lua pages and the /api/v0 REST calls used
+# by lua/fritzbox.lua, keeps state in memory and logs every request to stderr
+# ("REQ ...").
 #
 # usage: fakefb.py [port]    (default: 18080, listens on 127.0.0.1)
 #
@@ -62,8 +63,9 @@ profiles = [
 # only "kid" sees it, to test both variants with one fake box
 profiles_kid = profiles + [dict(value="filtprof4", text="Gesperrt")]
 # blocked: "Internetnutzung gesperrt" on the edit device page
-# locked:   device lock of the parental control list (page kidLis), only
-#           visible as isDeviceBlocked, not lifted by the edit device page
+# locked:   device lock of the parental control list (REST API, user
+#           "disallowed"), visible as isDeviceBlocked, not lifted by the edit
+#           device page
 # ipconflict: blocked in the home network, IP address already in use
 settings = {
     uid: dict(profile="filtprof1", blocked=False, locked=False, ipconflict=False, realtime=False,
@@ -112,6 +114,16 @@ def edit_device_vars(uid):
     return {"ipv6_enabled": True, "ipMask": "255.255.255.0", "backToPage": "netDev", "dev_node": uid, "dev": dev}
 
 
+def rest_users():
+    # one parental control user per host, see docs/dumps/fb_kindersicherung_lock_unlock.md
+    return {"user": [
+        {"UID": "user" + uid[len("landevice"):], "landeviceUID": uid, "type": "1",
+         "name": f"(landev{uid[len('landevice'):]})", "disallowed": "1" if st["locked"] else "0",
+         "filter_profile_UID": st["profile"], "today_time": "0", "ticket_valid": "0", "tickets_in_advance": "0"}
+        for uid, st in settings.items()
+    ]}
+
+
 def edit_device_apply(f):
     uid = f.get("dev")
     missing = [k for k in required_fields if k not in f]
@@ -147,8 +159,35 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
+    def rest_authorized(self):
+        if self.headers.get("AUTHORIZATION") != "AVM-SID " + SID:
+            self.reply("{}", code=403)
+            return False
+        return True
+
     def do_GET(self):
+        if self.path.startswith("/api/v0/"):
+            print("REQ GET", self.path, file=sys.stderr, flush=True)
+            if not self.rest_authorized():
+                return
+            if self.path == "/api/v0/generic/user":
+                return self.reply(json.dumps(rest_users()))
+            return self.reply("{}", code=404)
         self.reply(session_info("0" * 16), "text/xml")
+
+    def do_PUT(self):
+        raw = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
+        print("REQ PUT", self.path, raw, file=sys.stderr, flush=True)
+        if not self.rest_authorized():
+            return
+        prefix = "/api/v0/generic/user/user/user"
+        uid = "landevice" + self.path[len(prefix):] if self.path.startswith(prefix) else None
+        if uid not in settings:
+            return self.reply("{}", code=404)
+        data = json.loads(raw)
+        if "disallowed" in data:
+            settings[uid]["locked"] = data["disallowed"] == "1"
+        return self.reply("{}")
 
     def do_POST(self):
         raw = self.rfile.read(int(self.headers["Content-Length"])).decode()
@@ -209,11 +248,6 @@ class Handler(BaseHTTPRequestHandler):
             if f.get("dev") not in settings:
                 return self.reply(json.dumps({"data": {}}))
             return self.reply(json.dumps({"pid": "edit_device", "data": {"vars": edit_device_vars(f["dev"])}}))
-        if page == "kidLis":
-            uid = f.get("toBeBlocked")
-            if uid in settings:
-                settings[uid]["locked"] = f.get("blocked") == "true"
-            return self.reply("<html><body>kidLis</body></html>", "text/html")
         if page == "netMoni":
             return self.reply(json.dumps({"data": {"connections": [{"name": "internet", "connected": True}]}}))
         self.reply("{}", code=404)

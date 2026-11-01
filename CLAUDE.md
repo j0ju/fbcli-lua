@@ -27,8 +27,11 @@ User-facing docs: `README.md`. Usage text: `lua/fbcli/help.lua` (keep both in sy
   Also defines globals `PStdErr` and `DieOnErr`.
 - `lua/fritzbox.lua` – API layer (`FB`): `login`, `route.{list,add,delete}`,
   `route.ipv4.*`/`route.ipv6.*`, `host.{list,delete,get,form,set}`, `mesh.list`,
-  `status`. All requests go through `fb_POST_json_data_lua`, which URL-encodes
-  form values.
+  `status`. `data.lua` requests go through `fb_POST_json_data_lua`
+  (`fb_POST_data_lua` for non-JSON replies), which URL-encodes form values;
+  the REST API of newer FRITZ!OS (`/api/v0/…`, JSON bodies, session id in the
+  `AUTHORIZATION: AVM-SID <sid>` header) goes through `fb_REST`. Prefer what the
+  web UI of the capture uses.
 - Settings pages (eg. `edit_device`, used by `host HOST filter`) are saved by
   posting the *whole* form, as the web UI does; fields left out may be reset.
   `fb.host.form()` rebuilds the form from the read reply, following the page's
@@ -49,6 +52,8 @@ User-facing docs: `README.md`. Usage text: `lua/fbcli/help.lua` (keep both in sy
   the source of truth for request/response formats. Read whole requests and
   replies with `zstdcat f.pcap.zst > /tmp/f.pcap && python3 docs/dumps/pcap-http.py /tmp/f.pcap`;
   `*.md` next to a capture describe it. Uncompressed `*.pcap` are ignored.
+  Captures can contain secrets (WiFi passwords in `wlan_light`, session ids):
+  check and scrub before committing one.
 
 ## Conventions
 

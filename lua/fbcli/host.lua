@@ -205,8 +205,11 @@ function host.filter(argv, i)
   local vars = settings.data.vars
   local profiles = (((vars.dev.netAccess or {}).kisi or {}).profiles) or {}
 
+  -- the device lock is only in the REST API of newer FRITZ!OS versions
+  local user = FB.host.user(FBhandle, h.UID)
+
   if op == "show" then
-    print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, profiles.selected), FB.host.internet(vars)))
+    print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, profiles.selected), FB.host.internet(vars, user)))
     return nil, nil
   end
 
@@ -243,12 +246,16 @@ function host.filter(argv, i)
   -- edit device page, check and unlock
   settings, err = FB.host.get(FBhandle, h.UID)
   DieOnErr(err)
-  if FB.host.internet(settings.data.vars) == "blocked" then
-    local _, err = FB.host.lock(FBhandle, h.UID, false)
-    DieOnErr(err)
-    settings, err = FB.host.get(FBhandle, h.UID)
-    DieOnErr(err)
-    if FB.host.internet(settings.data.vars) == "blocked" then
+  user = FB.host.user(FBhandle, h.UID)
+  if FB.host.internet(settings.data.vars, user) == "blocked" then
+    if user then
+      local _, err = FB.host.lock(FBhandle, h.UID, false)
+      DieOnErr(err)
+      settings, err = FB.host.get(FBhandle, h.UID)
+      DieOnErr(err)
+      user = FB.host.user(FBhandle, h.UID)
+    end
+    if FB.host.internet(settings.data.vars, user) == "blocked" then
       return nil, { exitcode = 1, errmsg = string.format("host %s: profile set, but its internet access is still blocked", h.name) }
     end
     print(string.format("I: host %s: unblocked", h.name))

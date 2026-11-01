@@ -155,8 +155,8 @@ Sets the access profile ("Zugangsprofil", Internet > Filter > Kindersicherung) o
    `blocked`, `ipconflict`)
 
 Unblocking lifts "Internetnutzung gesperrt" of the host and the device lock of the
-parental control list ("Internetzugang sperren und entsperren"), a prioritised host
-stays prioritised. Hosts blocked because their IP address is already in use
+parental control list ("Internetzugang sperren und entsperren", needs a FRITZ!OS with
+the `/api/v0` REST API), a prioritised host stays prioritised. Hosts blocked because their IP address is already in use
 (`ipconflict`) need another IP address first.
 
 Only plain hosts are supported, Powerline adapters and hosts with VPN settings are refused,
