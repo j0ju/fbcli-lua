@@ -36,7 +36,7 @@ end
 
 local route_queue_process = function(q, noop)
   if FBcli.verbose then
-    pstrerr("I: route_queue_process()")
+    PStdErr("I: route_queue_process()")
   end
   for pfx, r in pairs(q) do
     if r.op == "add" then
@@ -49,9 +49,18 @@ local route_queue_process = function(q, noop)
       end
     elseif r.op == "del" then
       if noop then
-        PStdErr(string.format("I: would add route %s via %s", r.prefix))
+        PStdErr(string.format("I: would delete route %s via %s", r.prefix, r.via))
       else
-      -- TODO
+        -- only delete routes pointing to our via, leave others untouched
+        local routes, err = FB.route.list(FBhandle)
+        DieOnErr(err)
+        for _, fb_r in ipairs(routes) do
+          if fb_r.prefix == IP.prefix(r.prefix) and fb_r.via == IP.address(r.via) then
+            local _, err = FB.route.delete(FBhandle, fb_r.name)
+            DieOnErr(err)
+            PStdErr(string.format("I: deleted route %s via %s", r.prefix, r.via))
+          end
+        end
       end
     end
     q[pfx]=nil
@@ -76,9 +85,11 @@ local fbcli_route_sync = function(argv, i)
     policy = "allow",
     noop = false,
   }
-  CLI.parse_into_table(args, argv, i)
+  local _, err = CLI.parse_into_table(args, argv, i)
+  DieOnErr(err)
   args.pollms = tonumber(args.pollms) -- ensure this is a number
-  dump(args)
+  if args.table == "" then args.table = "main" end
+  if FBcli.verbose then dump(args) end
 
   local pid, errmsg, errno, st, line
   local pipe = {}
@@ -92,7 +103,7 @@ local fbcli_route_sync = function(argv, i)
   pipe.r, pipe.w, errno = unistd.pipe()
   if pipe.r == nil then
     -- error message is in pipe.w
-    PStdErr(string.format("E: fbcli_route_sync: cannot create pipe to 'ip route monitor': %s"), pipe.w)
+    PStdErr(string.format("E: fbcli_route_sync: cannot create pipe to 'ip route monitor': %s", pipe.w))
     os.exit(1)
   end
 
@@ -106,10 +117,7 @@ local fbcli_route_sync = function(argv, i)
     PStdErr(string.format("I: fork PID: %s", unistd.getpid()))
   -- coldplug - popen and output "ip -$IPVER route show"
     for _, ipver in pairs({ "4", "6"  }) do
-      local table = ""
-      if not (args.table == "") then
-        table = "table " .. args.table
-      end
+      local table = "table " .. args.table
       local cmdline  = string.format("%s -%s route show %s", args.ip, ipver, table)
       print("-- coldplug: ".. cmdline)
       local ip_output = io.popen(cmdline)
@@ -147,12 +155,57 @@ local fbcli_route_sync = function(argv, i)
   end
 
   -- only main fork will reach this line of code, STDIN is STDOUT of fork
-  local poll_fds = { [unistd.STDIN_FILENO] = { events = { IN = true } } }
   local q = {}
-  local r = {}
-  repeat
-    local type, line = nil
 
+  -- handles one line of output of the child, returns true on end of input
+  local process_line = function(line)
+    if line:match("^-- end") then
+      PStdErr("I: end of child.")
+      return true
+    elseif line:match("^-- ") then
+      PStdErr(string.format("I: %s", line))
+      return false
+    end
+    local r = parse_ip_route(line)
+    -- ip omits "table main" for the main table
+    r.table = r.table or "main"
+    if r.prefix == "default" then
+      -- skip, we do not push default routes to fritzbox
+    elseif IP.contains({ "fe80::/10", "ff00::/8", "224.0.0.0/4" }, r.prefix) then
+      -- skip, link-local and multicast routes are of no use on the fritzbox
+    elseif not (r.table == args.table) then
+      -- skip, this route event was not in the desired table
+    elseif args.policy == "deny" and not IP.contains(args.allow, r.prefix) then
+      -- skip, this route is not in the allowed net ranges
+    elseif args.policy == "allow" and IP.contains(args.deny, r.prefix) then
+      -- skip, this route is the denied net ranges
+    elseif r.type == nil then
+      -- check AF of route, if valid set appropiate via/endpoint
+      r.af = IP.type(r.prefix)
+      if r.af:match("^ipv4") then
+        r.via = args.v4via
+      elseif r.af:match("^ipv6") then
+        r.via = args.v6via
+      else
+        r.via = ""
+      end
+      -- if via is set process this route
+      if not (r.via == "") then
+        -- augment some attributes of routes in FritzBoxes and enqueue
+        r.name = ""
+        r.active = 1
+        q[r.prefix] = r
+      end
+    end
+    return false
+  end
+
+  -- read from the raw fd: lua's buffered io.read() could hold lines poll()
+  -- does not know about anymore
+  local poll_fds = { [unistd.STDIN_FILENO] = { events = { IN = true } } }
+  local buf = ""
+  local done = false
+  repeat
     -- wait for input from child
     -- Ideas & Assumptions
     --  * most route changes come in bursts
@@ -168,55 +221,29 @@ local fbcli_route_sync = function(argv, i)
       os.exit(1)
     elseif events == 0 then
       route_queue_process(q, args.noop)
-    elseif events > 0 then
-      if poll_fds[unistd.STDIN_FILENO].revents.IN then
-        line = io.read()
-        r = {}
-      elseif poll_fds[unistd.STDIN_FILENO].revents.HUP then
-        -- STDIN closed
-        break
-      end
-
-      line = io.read()
-    end
-
-    if not (line == nil) then
-      if line:match("^-- end") then
-        PStdErr(string.format("I: end of child.", line))
-        break
-      elseif line:match("^-- ") then
-        PStdErr(string.format("I: %s", line))
-      else
-        r = parse_ip_route(line)
-        if r.prefix == "default" then
-          -- skip, we do not push default routes to fritzbox
-        elseif not ((r.table or "") == args.table) then
-          -- skip, this route event was not in the desired table
-        elseif args.policy == "deny" and not IP.contains(args.allow, r.prefix) then
-          -- skip, this route is not in the allowed net ranges
-        elseif args.policy == "allow" and IP.contains(args.deny, r.prefix) then
-          -- skip, this route is the denied net ranges
-        elseif r.type == nil then
-          -- check AF of route, if valid set appropiate via/endpoint
-          r.af = IP.type(r.prefix)
-          if r.af:match("^ipv4") then
-            r.via = args.v4via
-          elseif r.af:match("^ipv6") then
-            r.via = args.v6via
-          else
-            r.via = ""
-          end
-          -- if via is set process this route
-          if not (r.via == "") then
-            -- augment some attributes of routes in FritzBoxes and enqueue
-            r.name = ""
-            r.active = 1
-            q[r.prefix] = r
-          end
+    else
+      local revents = poll_fds[unistd.STDIN_FILENO].revents
+      if revents.IN or revents.HUP then
+        local data = unistd.read(unistd.STDIN_FILENO, 4096)
+        if data == nil or data == "" then
+          -- STDIN closed
+          done = true
+        else
+          buf = buf .. data
         end
       end
     end
-  until false
+
+    -- process all complete lines
+    local pos = 1
+    while not done do
+      local nl = buf:find("\n", pos, true)
+      if nl == nil then break end
+      done = process_line(buf:sub(pos, nl - 1))
+      pos = nl + 1
+    end
+    buf = buf:sub(pos)
+  until done
   -- tail processing of queued routes
   route_queue_process(q, args.noop)
 end
