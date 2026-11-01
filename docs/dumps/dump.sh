@@ -12,7 +12,7 @@ unset client_mac
 # no dump of traffic the fb does not speak by itself
 # no https, otherwise hard to dump ;)
 
-exec tcpdump -pnvvi br-lan \
+exec tcpdump -pnvvi "$dev" \
       ether host $fb_mac \
   and ether host $client_mac \
   and not port 53 and not port 5353 \
