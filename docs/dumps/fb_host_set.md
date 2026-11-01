@@ -58,15 +58,7 @@ Reply: `{"data": {"redirect": {"back": true}, "apply": "ok"}}`
   `netpwd`, `tr069_option`) and devices with VPN users (`vpn_active`) have more
   fields, `fb.host.form()` refuses those.
 
-## Device lock (page `kidLis`, not captured yet)
+## Device lock
 
-Internet > Filter > Kindersicherung, "Internetzugang sperren und entsperren".
-From the JS of `page=kidLis` (`fb_list_Zugangsprofile.pcap.zst`):
-
-```js
-newval.submit({ name: "toBeBlocked", value: <landevice UID> }, { blocked: <true|false> })
-```
-
-fbcli sends `xhr=1&toBeBlocked=landeviceN&blocked=false&page=kidLis` and checks the
-result via `page=edit_device` (`isDeviceBlocked`). The reply is the HTML page.
-A capture of (un)locking a device would confirm the request.
+Not part of this page, see `fb_kindersicherung_lock_unlock.md`
+(REST API, `PUT /api/v0/generic/user/user/<user UID>` with `{"disallowed":"0"}`).
