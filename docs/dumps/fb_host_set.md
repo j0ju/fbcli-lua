@@ -60,5 +60,13 @@ Reply: `{"data": {"redirect": {"back": true}, "apply": "ok"}}`
 
 ## Device lock
 
-Not part of this page, see `fb_kindersicherung_lock_unlock.md`
-(REST API, `PUT /api/v0/generic/user/user/<user UID>` with `{"disallowed":"0"}`).
+`internetdetail=blocked` *is* the device lock ("Gerätesperre") of the parental
+control list, observed on a real box (November 2026, `FBCLI_VERBOSE=1 fb host bolt filter …`):
+
+| after                          | `msgid` / `msg`                  | `isDeviceBlocked` | REST user `disallowed` |
+|--------------------------------|----------------------------------|-------------------|------------------------|
+| save `internetdetail=blocked`  | `blocked` / "Gerätesperre aktiv" | true              | 1                      |
+| save `internetdetail=unlimited`| `unlimited` / "Unbeschränkt"     | false             | 0                      |
+
+So saving this page also lifts a lock set in Kindersicherung; the REST call of
+`fb_kindersicherung_lock_unlock.md` is only a fallback.

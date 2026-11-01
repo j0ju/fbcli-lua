@@ -41,5 +41,11 @@ PUT /api/v0/generic/user/user/user8628
 
 Reply: `{}` (HTTP 200). The web interface re-reads `generic/user` afterwards.
 
+`GET /api/v0/generic/landevice` also has a `blocked` field per device. It is not
+the lock setting: for "bolt" it was `0` before locking and `-1` after locking and
+after unlocking again, other devices switched from `1` to `-1` at the same time.
+It looks like a live status that is reset (`-1`, unknown) on configuration
+changes; fbcli does not use it.
+
 `filter_profile_UID` in the same object suggests the access profile can be set
 the same way, this is not captured yet (`host filter` uses `page=edit_device`).
