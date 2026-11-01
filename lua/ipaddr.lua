@@ -178,6 +178,9 @@ local doctet_expandv6 = function(doctet)
 end
 
 function ipaddr.type(str)
+  if not (type(str) == "string") then
+    return type(str)
+  end
   local i, _, addr = (str or ""):find('^(%d+[.]%d+[.]%d+[.]%d+)$')
   if i then
     return "ipv4", addr, "32"
