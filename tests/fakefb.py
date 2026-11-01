@@ -50,6 +50,9 @@ hosts = {
     ],
 }
 next_id = [10]
+# test switch: GET /fake/rest_fail/on|off, the REST API then answers like a
+# FritzBox that denies the session
+rest_fail = [False]
 
 # access profiles and settings of the "edit device" page (page=edit_device),
 # structure as captured in docs/dumps/fb_host_set.pcap.zst
@@ -160,12 +163,17 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b)
 
     def rest_authorized(self):
-        if self.headers.get("AUTHORIZATION") != "AVM-SID " + SID:
-            self.reply("{}", code=403)
+        if rest_fail[0] or self.headers.get("AUTHORIZATION") != "AVM-SID " + SID:
+            # as answered by a real FritzBox
+            self.reply(json.dumps({"errors": [{"message": "permission denied: " + self.path.split("?")[0],
+                                               "code": 3001}]}), code=400)
             return False
         return True
 
     def do_GET(self):
+        if self.path.startswith("/fake/rest_fail/"):
+            rest_fail[0] = self.path.endswith("/on")
+            return self.reply("{}")
         if self.path.startswith("/api/v0/"):
             print("REQ GET", self.path, file=sys.stderr, flush=True)
             if not self.rest_authorized():

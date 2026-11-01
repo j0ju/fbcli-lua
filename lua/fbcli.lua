@@ -54,9 +54,10 @@ FBhandle = {
   url = os.getenv("FRITZBOX_URL") or "http://fritz.box",
   sid = os.getenv("FRITZBOX_SESSION") or 0,
 }
--- disable verbosity
-FB.verbose = false
-FBcli.verbose = false
+-- verbosity, FBCLI_VERBOSE=1 logs all calls to the FritzBox to STDERR
+FB.verbose = (os.getenv("FBCLI_VERBOSE") == "1")
+FBcli.verbose = FB.verbose
+CLI.verbose = FB.verbose
 
 local rs, err = CLI.action(FBcli, arg)
 DieOnErr(err)

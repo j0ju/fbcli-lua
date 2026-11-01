@@ -179,6 +179,18 @@ local profile_name = function(profiles, value)
   return value
 end
 
+-- Helper:
+--   parental control user of a host, holds the device lock; nil if the
+--   FritzBox has no REST API (older FRITZ!OS) or no user for this host.
+--   Other errors are fatal, the device lock would be unknown.
+local host_user = function(uid)
+  local user, err = FB.host.user(FBhandle, uid)
+  if err and not (err.code == 404 or err.nouser) then
+    DieOnErr({ exitcode = 1, errmsg = "cannot read the device lock of the parental control (REST API): " .. err.errmsg })
+  end
+  return user
+end
+
 -- host <host> filter [allow|disallow|reset|show]
 --   allow    - access profile "Unbeschränkt"
 --   disallow - access profile "Gesperrt", newer FRITZ!OS versions have no such
@@ -206,7 +218,7 @@ function host.filter(argv, i)
   local profiles = (((vars.dev.netAccess or {}).kisi or {}).profiles) or {}
 
   -- the device lock is only in the REST API of newer FRITZ!OS versions
-  local user = FB.host.user(FBhandle, h.UID)
+  local user = host_user(h.UID)
 
   if op == "show" then
     print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, profiles.selected), FB.host.internet(vars, user)))
@@ -246,14 +258,14 @@ function host.filter(argv, i)
   -- edit device page, check and unlock
   settings, err = FB.host.get(FBhandle, h.UID)
   DieOnErr(err)
-  user = FB.host.user(FBhandle, h.UID)
+  user = host_user(h.UID)
   if FB.host.internet(settings.data.vars, user) == "blocked" then
     if user then
       local _, err = FB.host.lock(FBhandle, h.UID, false)
       DieOnErr(err)
       settings, err = FB.host.get(FBhandle, h.UID)
       DieOnErr(err)
-      user = FB.host.user(FBhandle, h.UID)
+      user = host_user(h.UID)
     end
     if FB.host.internet(settings.data.vars, user) == "blocked" then
       return nil, { exitcode = 1, errmsg = string.format("host %s: profile set, but its internet access is still blocked", h.name) }

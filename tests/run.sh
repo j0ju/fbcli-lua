@@ -153,6 +153,12 @@ run 0 host list wifi no
 expect_not "laptop"
 expect "noip"
 
+# fake <path> - switches of tests/fakefb.py, eg. "rest_fail/on"
+fake() {
+  "$PYTHON" -I -c 'import sys, urllib.request; urllib.request.urlopen(sys.argv[1]).read()' \
+    "$FRITZBOX_URL/fake/$1"
+}
+
 # --- abbreviations
 run 0 h l s ip
 expect_order "old&box" "laptop"
@@ -252,6 +258,24 @@ expect "noip profile Unbeschränkt internet realtime"
 run 0 host noip filter reset
 expect_not "unblocked"
 expect "I: host noip: profile Standard"
+# REST API errors are reported, not ignored (the device lock would be unknown)
+run 0 h noip f d
+fake rest_fail/on
+run 1 host noip filter
+expect "cannot read the device lock of the parental control (REST API)"
+expect "permission denied: /api/v0/generic/user (code 3001)"
+run 1 host noip filter allow
+expect "permission denied"
+fake rest_fail/off
+run 0 host noip filter allow
+expect "I: host noip: profile Unbeschränkt"
+FBCLI_VERBOSE=1
+export FBCLI_VERBOSE
+run 0 host noip filter
+expect "I: fb_REST(GET generic/user)"
+expect "I: fb_REST: HTTP status 200"
+unset FBCLI_VERBOSE
+
 # blocked in the home network, profiles do not help
 run 0 host dupip filter
 expect "internet ipconflict"

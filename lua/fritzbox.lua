@@ -172,10 +172,20 @@ local fb_REST = function(fbhandle, method, path, data)
   if b == nil then
     return nil, { errmsg = string.format("HTTP call %s %s failed: %s", method, url, tostring(code)), exitcode = 1 }
   end
-  if not (code == 200) then
-    return nil, { code = code, exitcode = 1, errmsg = string.format("HTTP call %s %s unsuccessful %s", method, url, tostring(code)) }
+  local reply = table.concat(resp)
+  if fb.verbose then
+    PStdErr(string.format("I: fb_REST: HTTP status %s, reply: %s", tostring(code), reply:sub(1, 500)))
   end
-  local ok, r = pcall(JSON.decode, JSON, table.concat(resp))
+  if not (code == 200) then
+    -- error replies look like {"errors":[{"message":"permission denied: ...","code":3001}]}
+    local ok, r = pcall(JSON.decode, JSON, reply)
+    local msg = ""
+    if ok and type(r) == "table" and type(r.errors) == "table" and type(r.errors[1]) == "table" then
+      msg = string.format(": %s (code %s)", tostring(r.errors[1].message), tostring(r.errors[1].code))
+    end
+    return nil, { code = code, exitcode = 1, errmsg = string.format("HTTP call %s %s unsuccessful %s%s", method, url, tostring(code), msg) }
+  end
+  local ok, r = pcall(JSON.decode, JSON, reply)
   if not ok or r == nil then
     return nil, { exitcode = 1, errmsg = string.format("cannot decode JSON reply of %s %s: %s", method, url, tostring(r)) }
   end
@@ -660,7 +670,7 @@ function fb.host.user(fbhandle, landevice)
       return u, nil
     end
   end
-  return nil, { exitcode = 1, errmsg = string.format("no parental control user found for host %s", landevice) }
+  return nil, { exitcode = 1, nouser = true, errmsg = string.format("no parental control user found for host %s", landevice) }
 end
 
 -- (un)locks the internet access of a host, the device lock of the parental

@@ -92,6 +92,11 @@ tests/run.sh            # VERBOSE=1 shows every command and its output
 - `tests/fake-ip` – stands in for `ip` in `route sync … ip tests/fake-ip`
   (fixed routing table, a few `monitor route` events).
 
+`FBCLI_VERBOSE=1` logs every FritzBox call; ask for that output when something
+fails on a real box. `tests/run.sh`'s `fake rest_fail/on|off` makes the fake
+REST API deny the session. Never ignore errors of a lookup whose result decides
+what to change (e.g. the device lock): fail instead of guessing.
+
 Add a test for each fixed bug or new option. Find accidental globals with
 `luac5.1 -l -p FILE | grep GETGLOBAL`. Never test destructive commands
 (`route flush`, `host delete`, `route sync` without `noop`) on a real box without asking.

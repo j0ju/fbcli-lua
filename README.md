@@ -70,6 +70,7 @@ This session id can be stored and reused in environment `FRITZBOX_SESSION`.
  * `FRITZBOX_USER`
  * `FRITZBOX_PASSWORD`
  * `FRITZBOX_SESSION`
+ * `FBCLI_VERBOSE=1` - log all calls to the FritzBox (and REST replies) to STDERR
 
 All but `FRITZBOX_SESSION` can be used by `login` op.
 
