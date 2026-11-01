@@ -23,6 +23,16 @@ local fb = {
 }
 
 -- Helper:
+--   URL-encodes a value for application/x-www-form-urlencoded bodies
+local urlencode = function(str)
+  str = tostring(str)
+  str = str:gsub("\n", "\r\n")
+  str = str:gsub("([^%w%-%._~ ])", function(c) return string.format("%%%02X", string.byte(c)) end)
+  str = str:gsub(" ", "+")
+  return str
+end
+
+-- Helper:
 --   for login, generates response on challange for authentication
 local fb_response = function(ch, pw)
   local pre = ch .. "-" .. pw
@@ -40,7 +50,6 @@ function fb.login(user, pw, url)
   if url == nil then
     url = "http://fritz.box"
   end
-  -- TODO: error handling on HTTP
   -- Fetch login page and challenge
   local resp = {}
   local b, code, resp_h, s = http.request{
@@ -48,12 +57,18 @@ function fb.login(user, pw, url)
     method = "GET",
     sink = ltn12.sink.table(resp)
   }
+  if b == nil then
+    return nil, { errmsg = string.format("HTTP call to %s/login_sid.lua failed: %s", url, tostring(code)), exitcode = 1 }
+  end
 
   -- Calculate response from challenge
   local x = XML.parse(table.concat(resp))
   local t = XML.find_element(x, "Challenge")
+  if t == nil or t[1] == nil then
+    return nil, { errmsg = string.format("no login challenge found at %s/login_sid.lua (HTTP status: %s)", url, tostring(code)), exitcode = 1 }
+  end
   local resp = fb_response(t[1], pw)
-  local post_data = "response=".. resp .. "&username=" .. user
+  local post_data = "response=".. urlencode(resp) .. "&username=" .. urlencode(user)
 
   -- Present challenge to fritzbox to authenticate
   local resp = {}
@@ -67,16 +82,19 @@ function fb.login(user, pw, url)
     },
     sink = ltn12.sink.table(resp)
   }
+  if b == nil then
+    return nil, { errmsg = string.format("HTTP call to %s/login_sid.lua failed: %s", url, tostring(code)), exitcode = 1 }
+  end
 
   x = XML.parse(table.concat(resp))
-  t = XML.find_element(x, "SID")
+  t = XML.find_element(x, "SID") or {}
 
   if (not (t==nil)) and (code == 200) and (not (t[1]==nil)) and ((tonumber(t[1], 16) or 0) > 0) then
     return { url=url, user=user, sid=t[1], login_info=x }, nil
   end
-  local blocktime = XML.find_element(x, "BlockTime")
+  local blocktime = XML.find_element(x, "BlockTime") or {}
   return nil, {
-    errmsg = string.format("could not get a valid session Id (HTTP status: %d, SID: %s, blocktime: %s seconds)", code, t[1] or "", blocktime[1] or "(unknown)"),
+    errmsg = string.format("could not get a valid session Id (HTTP status: %s, SID: %s, blocktime: %s seconds)", tostring(code), t[1] or "", blocktime[1] or "(unknown)"),
     exitcode = 1
   }
 end
@@ -91,11 +109,10 @@ local fb_POST_json_data_lua = function(fbhandle, page, args)
     args = {}
   end
 
-  -- TODO: error handling on HTTP
-  local post_data = "sid=".. fbhandle.sid .."&page=".. page
+  local post_data = "sid=".. urlencode(fbhandle.sid) .."&page=".. urlencode(page)
   local k, v
   for k, v in pairs(args) do
-    post_data = post_data .. "&" .. k .. "=" .. v
+    post_data = post_data .. "&" .. urlencode(k) .. "=" .. urlencode(v)
   end
   --print(post_data)
 
@@ -112,23 +129,26 @@ local fb_POST_json_data_lua = function(fbhandle, page, args)
     sink = ltn12.sink.table(resp)
   }
 
+  if b == nil then
+    return nil, { errmsg = string.format("HTTP call to %s (%s) failed: %s", url, page, tostring(code)), exitcode = 1 }
+  end
   if fb.verbose then
     PStdErr("I: fb_POST_json_data_lua: HTTP status: ".. code)
   end
-  error = nil
   if not (code == 200) then
-    error = { code = code, errmsg = string.format("HTTP call to %s (%s) unsuccessful %d. Check credentials!", url, page, code) }
+    local err = { code = code, exitcode = 1, errmsg = string.format("HTTP call to %s (%s) unsuccessful %s. Check credentials!", url, page, tostring(code)) }
     if fb.verbose then
-      PStdErr("E: fb_POST_json_data_lua: ".. error.errmsg)
+      PStdErr("E: fb_POST_json_data_lua: ".. err.errmsg)
     end
+    return nil, err
   end
 
-  -- TODO: error handling on JSON
-  local body = ""
-  for _, v in pairs(resp) do
-    body = body .. v
+  local body = table.concat(resp)
+  local ok, data = pcall(JSON.decode, JSON, body)
+  if not ok or data == nil then
+    return nil, { exitcode = 1, errmsg = string.format("cannot decode JSON reply of %s (%s): %s", url, page, tostring(data)) }
   end
-  return JSON:decode(body), error
+  return data, nil
 end
 
 function fb.route.list(fbhandle)
@@ -198,8 +218,31 @@ function fb.route.list_filter(in_routes, r)
         routes[k] = nil
       end
     end
+    if not ((r.name or "") == "") then
+      if not (v.name == r.name) then
+        routes[k] = nil
+      end
+    end
   end
   return routes
+end
+
+-- Helper:
+--   returns all routes (as list) for a prefix, the list from fb.route.list
+--   indexes routes by prefix only once, duplicates are only visible in the
+--   integer indexed part
+local fb_route_list_by_prefix = function(fbhandle, prefix)
+  local routes, err = fb.route.list(fbhandle)
+  if err then
+    return nil, err
+  end
+  local rs = {}
+  for _, r in ipairs(routes) do
+    if r.prefix == prefix then
+      table.add(rs, r)
+    end
+  end
+  return rs, nil
 end
 
 function fb.route.add(fbhandle, route)
@@ -208,62 +251,40 @@ function fb.route.add(fbhandle, route)
   if fb.verbose then
     PStdErr( string.format("I: fb.route.add({ prefix = %s, via = %s, active = %s, name = %s })", route.prefix, route.via, route.active, (route.name or "")))
   end
+  local af
   if route.type == "ipv4+cidr" then
-  -- IPv4
-    -- ensure we have only one active route for per prefix, remove all but 0 or 1 routes for that prefix
-    local current_routes = {}
-    repeat
-      current_routes = fb.route.list(fbhandle)
-      current_routes = fb.route.list_filter(current_routes, { prefix = route.prefix, name = route.name })
-      local l = table.size(current_routes)
-      if l > 1 then
-        if current_routes[route.prefix] then
-          fb.route.del(fbhandle, current_routes[route.prefix].name)
-        end
-      end
-    until l <= 1
-    -- add or update (by name) current prefix
-    if current_routes[route.prefix] then
-      if not (     ( current_routes[route.prefix].prefix == route.prefix )
-               and ( current_routes[route.prefix].via == route.via )
-               and ( current_routes[route.prefix].active == route.active ) ) then
-        route.name = current_routes[route.prefix].name
-        return fb.route.ipv4.set(fbhandle, route.prefix, route.via, route.active, route.name)
-      else
-        return true
-      end
-    else
-      return fb.route.ipv4.add(fbhandle, route.prefix, route.via, route.active)
-    end
+    af = fb.route.ipv4
   elseif route.type == "ipv6+cidr" then
-  -- IPv6
-    local current_routes = {}
-    repeat
-      current_routes = fb.route.list(fbhandle)
-      current_routes = fb.route.list_filter(current_routes, { prefix = route.prefix, name = route.name })
-      local l = table.size(current_routes)
-      if l > 1 then
-        if current_routes[route.prefix] then
-          fb.route.del(fbhandle, current_routes[route.prefix].name)
-        end
-      end
-    until l <= 1
-    if current_routes[route.prefix] then
-      if not (     ( current_routes[route.prefix].prefix == route.prefix )
-               and ( current_routes[route.prefix].via == route.via )
-               and ( current_routes[route.prefix].active == route.active ) ) then
-        route.name = current_routes[route.prefix].name
-        return fb.route.ipv6.set(fbhandle, route.prefix, route.via, route.active, route.name)
-      else
-        return true
-      end
-    else
-      return fb.route.ipv6.add(fbhandle, route.prefix, route.via, route.active)
-    end
+    af = fb.route.ipv6
   else
-    PStdErr("E: fb.route.add - AF not supported, yet")
-    dump(route)
+    return nil, { exitcode = 1, errmsg = string.format("fb.route.add - address family of '%s' not supported, yet", tostring(route.prefix)) }
   end
+
+  -- ensure we have only one route per prefix, remove all but 0 or 1 routes for that prefix
+  local current_routes, err
+  repeat
+    current_routes, err = fb_route_list_by_prefix(fbhandle, route.prefix)
+    if err then
+      return nil, err
+    end
+    if #current_routes > 1 then
+      local _, err = af.delete(fbhandle, current_routes[#current_routes].name)
+      if err then
+        return nil, err
+      end
+    end
+  until #current_routes <= 1
+
+  -- add or update (by name) current prefix
+  local current = current_routes[1]
+  if current then
+    if    ( current.via == IP.address(route.via) )
+      and ( tostring(current.active) == tostring(route.active) ) then
+      return true, nil
+    end
+    return af.set(fbhandle, route.prefix, route.via, route.active, current.name)
+  end
+  return af.add(fbhandle, route.prefix, route.via, route.active)
 end
 
 function fb.route.delete(fbhandle, name, via)
@@ -282,8 +303,7 @@ function fb.route.delete(fbhandle, name, via)
   elseif (t or ""):find("^ipv6") then
     return fb.route.ipv6.delete(fbhandle, name, via)
   else
-    PStdErr("E: fb.route.del - address family not supported, yet")
-    dump({ name = name, via = via})
+    return nil, { exitcode = 1, errmsg = string.format("fb.route.delete - '%s' is neither a route name nor a prefix of a supported address family", tostring(name)) }
   end
 end
 
@@ -383,17 +403,20 @@ function fb.route.ipv4.delete(fbhandle, name, via)
   elseif (t or ""):find("^ipv4") then
     local current_routes = {}
     local prefix = name
+    local err
     repeat
-      current_routes = fb.route.list(fbhandle)
-      current_routes = fb.route.list_filter(current_routes, { prefix = name })
-      local l = table.size(current_routes)
-      if l > 0 then
-        if current_routes[prefix] then
-          rs = fb.route.ipv4.delete(fbhandle, current_routes[prefix].name)
+      current_routes, err = fb_route_list_by_prefix(fbhandle, IP.prefix(prefix))
+      if err then
+        return nil, err
+      end
+      if #current_routes > 0 then
+        rs, err = fb.route.ipv4.delete(fbhandle, current_routes[1].name)
+        if err then
+          return nil, err
         end
       end
-    until l == 0
-    return (rs or true)
+    until #current_routes == 0
+    return (rs or true), nil
   end
 end
 
@@ -414,17 +437,20 @@ function fb.route.ipv6.delete(fbhandle, name, via)
   elseif (t or ""):find("^ipv6") then
     local current_routes = {}
     local prefix = name
+    local err
     repeat
-      current_routes = fb.route.list(fbhandle)
-      current_routes = fb.route.list_filter(current_routes, { prefix = name })
-      local l = table.size(current_routes)
-      if l > 0 then
-        if current_routes[prefix] then
-          rs = fb.route.ipv6.delete(fbhandle, current_routes[prefix].name)
+      current_routes, err = fb_route_list_by_prefix(fbhandle, IP.prefix(prefix))
+      if err then
+        return nil, err
+      end
+      if #current_routes > 0 then
+        rs, err = fb.route.ipv6.delete(fbhandle, current_routes[1].name)
+        if err then
+          return nil, err
         end
       end
-    until l == 0
-    return (rs or true)
+    until #current_routes == 0
+    return (rs or true), nil
   end
 end
 
