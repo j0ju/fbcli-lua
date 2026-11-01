@@ -211,6 +211,12 @@ fbcli route sync v4via 192.168.178.2 v6via fe80::2 follow noop
 fbcli host del old-laptop
 ```
 
+## Tests
+
+`tests/run.sh` runs fbcli against a fake FritzBox (`tests/fakefb.py`, needs python3)
+and a fake `ip` (`tests/fake-ip`), no real FritzBox is touched.
+`VERBOSE=1 tests/run.sh` shows every command and its output.
+
 ## Reverse engineering
 
 The FritzBox web interface API is undocumented. `docs/dumps` contains

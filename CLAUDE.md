@@ -50,15 +50,25 @@ User-facing docs: `README.md`. Usage text: `lua/fbcli/help.lua` (keep both in sy
 
 ## Checking changes
 
-There are no automated tests. At minimum:
+Run the test suite after every change (needs `lua5.1`, `luac5.1`, `python3`):
 
 ```sh
-for f in lua/*.lua lua/fbcli/*.lua lua/fbcli/route/*.lua; do luac5.1 -p "$f"; done
+tests/run.sh            # VERBOSE=1 shows every command and its output
 ```
 
-Find accidental globals with `luac5.1 -l -p FILE | grep GETGLOBAL`.
-`route sync … noop ip ./fake-ip-script` runs without a FritzBox. For the other
-commands, point `FRITZBOX_URL` at a small local HTTP server that mimics
-`login_sid.lua`/`data.lua` (reply shapes are in `fritzbox.lua` and the dumps);
-never test destructive commands (`route flush`, `host delete`) on a real box
-without asking.
+- `tests/run.sh` – syntax-checks all Lua files, starts `tests/fakefb.py` on
+  `127.0.0.1:$PORT` (default 18080), runs fbcli commands in order and checks
+  exit codes and output with `run <rc> <args…>`, `expect` and `expect_not`.
+  All tests share one fake box, so order matters: later tests see what
+  earlier ones changed.
+- `tests/fakefb.py` – fake FritzBox: `login_sid.lua` (user `root`, password
+  and SID in the file) and the `data.lua` pages `fritzbox.lua` uses, state in
+  memory, every request logged to stderr. When you use a new page or form
+  field, add it here and base the reply shape on `docs/dumps`. Run it alone
+  with `python3 tests/fakefb.py [port]` for manual checks.
+- `tests/fake-ip` – stands in for `ip` in `route sync … ip tests/fake-ip`
+  (fixed routing table, a few `monitor route` events).
+
+Add a test for each fixed bug or new option. Find accidental globals with
+`luac5.1 -l -p FILE | grep GETGLOBAL`. Never test destructive commands
+(`route flush`, `host delete`, `route sync` without `noop`) on a real box without asking.

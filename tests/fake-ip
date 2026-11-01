@@ -1,0 +1,28 @@
+#!/bin/sh
+# LICENSE: GPL v2, see lua/LICENSE.txt
+#
+# Fake "ip" binary for "fbcli route sync ... ip tests/fake-ip".
+# Prints a fixed routing table for "ip -4/-6 route show" (coldplug) and a few
+# events for "ip monitor route" (hotplug, used with "follow").
+
+case "$1 $2" in
+  "-4 route")
+    printf '%s\n' \
+      'default via 192.168.1.1 dev eth0' \
+      '10.1.0.0/16 via 192.168.1.5 dev eth0 proto bird' \
+      '10.2.0.0/24 dev wg0 scope link' \
+      '172.16.0.0/12 via 192.168.1.5 dev eth0'
+    ;;
+  "-6 route")
+    printf '%s\n' \
+      '2001:db8:1::/48 via fe80::1 dev eth0 proto bird metric 1024 pref medium' \
+      'fe80::/64 dev eth0 proto kernel metric 256 pref medium'
+    ;;
+  "monitor route")
+    printf '%s\n' \
+      '10.3.0.0/24 via 192.168.1.5 dev eth0' \
+      'Deleted 10.1.0.0/16 via 192.168.1.5 dev eth0' \
+      '10.9.0.0/24 via 192.168.1.5 dev eth0 table 100'
+    sleep 1
+    ;;
+esac
