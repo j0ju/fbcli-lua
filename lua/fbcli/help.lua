@@ -22,8 +22,9 @@ return function()
     - via
     - active      - flag determining if the route is "active", (default 1)
 
-  * route del   - deletes all extra route for prefix
+  * route del   - deletes all extra routes for prefix
     - prefix
+    - name        - delete only the route with this name (see route show)
 
   * route flush - remove all extra routes
 
@@ -46,17 +47,20 @@ return function()
                     deny - allow list, rest deny by policy
                     allow - deny list, rest allow by policy
     - deny        - specifies a prefix to be denied, can be specified multiple times
-    - allow       - specifies a prefix to be denied, can be specified multiple times
+    - allow       - specifies a prefix to be allowed, can be specified multiple times
 
   * host list   - lists hosts
-    - active      - list active or passive hosts (boolean: true)
-    - passive     - list active or passive hosts (boolean: true)
-    - sort        - sort options (default: none, use lower case coloumn name: name, mac, ipv4, port)
+    - active      - list active hosts (boolean: true)
+    - passive     - list passive hosts (boolean: true)
+    - wifi        - list hosts connected via WLAN (boolean: true)
+    - ethernet    - list hosts connected via LAN (boolean: true)
+    - sort        - sort by lower case coloumn name: name, mac, ipv4,
+                    online, port (default: ipv4)
 
-  * host delete - delete a offlien/passiver host
+  * host delete - delete an offline/passive host
     - name        - host to be deleted
 
-  * status
+  * status      - shows the online status of the internet connections
 
   ]])
   os.exit(1)
