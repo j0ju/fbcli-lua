@@ -191,6 +191,38 @@ local host_user = function(uid)
   return user
 end
 
+-- Helper:
+--   with FBCLI_VERBOSE=1: all fields of a host related to blocking, from the
+--   edit device page and the REST API, to find out how a FritzBox blocks
+local host_debug_state = function(when, h, vars, user)
+  if not FBcli.verbose then
+    return
+  end
+  local kisi = ((vars.dev.netAccess or {}).kisi) or {}
+  local s = {
+    string.format("selectedRights.msgid=%s", tostring((kisi.selectedRights or {}).msgid)),
+    string.format("selectedRights.msg=%s", tostring((kisi.selectedRights or {}).msg)),
+    string.format("isDeviceBlocked=%s", tostring(kisi.isDeviceBlocked)),
+    string.format("showWarning=%s", tostring(kisi.showWarning)),
+    string.format("isChanged=%s", tostring(kisi.isChanged)),
+    string.format("profile=%s", tostring((kisi.profiles or {}).selected)),
+    string.format("realtime=%s", tostring((vars.dev.realtime or {}).state)),
+  }
+  if user then
+    table.add(s, string.format("rest.user=%s disallowed=%s filter_profile_UID=%s", tostring(user.UID), tostring(user.disallowed), tostring(user.filter_profile_UID)))
+  else
+    table.add(s, "rest.user=(none)")
+  end
+  local d, err = FB.host.landevice(FBhandle, h.UID)
+  if d then
+    table.add(s, string.format("rest.landevice blocked=%s parental_control_abuse=%s kisi_state_hide=%s",
+      tostring(d.blocked), tostring(d.parental_control_abuse), tostring(d.kisi_state_hide)))
+  else
+    table.add(s, "rest.landevice=(" .. tostring(err and err.errmsg) .. ")")
+  end
+  PStdErr(string.format("I: state %s, host %s (%s): %s", when, h.name, h.UID, table.concat(s, ", ")))
+end
+
 -- host <host> filter [allow|disallow|reset|show]
 --   allow    - access profile "Unbeschränkt"
 --   disallow - access profile "Gesperrt", newer FRITZ!OS versions have no such
@@ -219,6 +251,7 @@ function host.filter(argv, i)
 
   -- the device lock is only in the REST API of newer FRITZ!OS versions
   local user = host_user(h.UID)
+  host_debug_state("before", h, vars, user)
 
   if op == "show" then
     print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, profiles.selected), FB.host.internet(vars, user)))
@@ -250,6 +283,11 @@ function host.filter(argv, i)
   DieOnErr(err)
 
   if form.internetdetail == "blocked" then
+    if FBcli.verbose then
+      settings, err = FB.host.get(FBhandle, h.UID)
+      DieOnErr(err)
+      host_debug_state("after", h, settings.data.vars, host_user(h.UID))
+    end
     print(string.format("I: host %s: internet usage blocked", h.name))
     return nil, nil
   end
@@ -259,6 +297,7 @@ function host.filter(argv, i)
   settings, err = FB.host.get(FBhandle, h.UID)
   DieOnErr(err)
   user = host_user(h.UID)
+  host_debug_state("after", h, settings.data.vars, user)
   if FB.host.internet(settings.data.vars, user) == "blocked" then
     if user then
       local _, err = FB.host.lock(FBhandle, h.UID, false)

@@ -274,6 +274,15 @@ export FBCLI_VERBOSE
 run 0 host noip filter
 expect "I: fb_REST(GET generic/user)"
 expect "I: fb_REST: HTTP status 200"
+expect "I: state before, host noip (landevice3): selectedRights.msgid=unlimited"
+expect "rest.user=user3 disallowed=0"
+expect "rest.landevice blocked=-1"
+run 0 host noip filter disallow
+expect "I: fb.host.set: "
+expect "internetdetail=blocked"
+expect "I: state after, host noip (landevice3): selectedRights.msgid=blocked"
+run 0 host noip filter allow
+expect "I: state after, host noip (landevice3): selectedRights.msgid=unlimited"
 unset FBCLI_VERBOSE
 
 # blocked in the home network, profiles do not help

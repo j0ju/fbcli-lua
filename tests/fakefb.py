@@ -180,6 +180,11 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if self.path == "/api/v0/generic/user":
                 return self.reply(json.dumps(rest_users()))
+            if self.path == "/api/v0/generic/landevice":
+                return self.reply(json.dumps({"landevice": [
+                    {"UID": uid, "name": find_host(uid)["name"], "blocked": "-1", "parental_control_abuse": "0",
+                     "kisi_state_hide": "2", "user_UIDs": "user" + uid[len("landevice"):]}
+                    for uid in settings]}))
             return self.reply("{}", code=404)
         self.reply(session_info("0" * 16), "text/xml")
 

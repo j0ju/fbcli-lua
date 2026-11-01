@@ -673,6 +673,21 @@ function fb.host.user(fbhandle, landevice)
   return nil, { exitcode = 1, nouser = true, errmsg = string.format("no parental control user found for host %s", landevice) }
 end
 
+-- network device of a host from the REST API (GET generic/landevice), eg.
+--   { UID = "landevice2959", name = "bolt", blocked = "-1", user_UIDs = "user8628", ... }
+function fb.host.landevice(fbhandle, landevice)
+  local r, err = fb_REST(fbhandle, "GET", "generic/landevice")
+  if err then
+    return nil, err
+  end
+  for _, d in ipairs(r.landevice or {}) do
+    if d.UID == landevice then
+      return d, nil
+    end
+  end
+  return nil, { exitcode = 1, nouser = true, errmsg = string.format("no network device %s in REST API", landevice) }
+end
+
 -- (un)locks the internet access of a host, the device lock of the parental
 -- control list ("Internetzugang sperren und entsperren"), see
 -- docs/dumps/fb_kindersicherung_lock_unlock.md
@@ -700,6 +715,14 @@ function fb.host.set(fbhandle, landevice, form)
   }
   for k, v in pairs(form) do
     args[k] = v
+  end
+  if fb.verbose then
+    local fields = {}
+    for k, v in pairs(args) do
+      table.add(fields, k .. "=" .. tostring(v))
+    end
+    table.sort(fields)
+    PStdErr("I: fb.host.set: " .. table.concat(fields, "&"))
   end
   local r, err = fb_POST_json_data_lua(fbhandle, "edit_device", args)
   if err then
