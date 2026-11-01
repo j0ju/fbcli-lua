@@ -221,6 +221,37 @@ run 1 host nobody filter allow
 expect "no host 'nobody' found"
 run 1 host laptop filter x
 expect "unknown filter action 'x'"
+# allow and reset unblock
+run 0 h laptop f d
+run 0 h laptop f a
+expect "I: host laptop: profile Unbeschränkt"
+expect_saved "'internetdetail': 'unlimited'"
+run 0 h laptop f
+expect "laptop profile Unbeschränkt internet unlimited"
+run 0 h kid f d
+run 0 h kid f a
+expect "I: host kid: profile Unbeschränkt"
+expect_saved "'kisi_profile': 'filtprof3'"
+# device lock of the parental control list, prioritised host
+run 0 host noip filter
+expect "noip profile Standard internet blocked"
+run 0 host noip filter allow
+expect "I: host noip: unblocked"
+expect "I: host noip: profile Unbeschränkt"
+expect_saved "'internetdetail': 'realtime'"
+run 0 host noip filter
+expect "noip profile Unbeschränkt internet realtime"
+run 0 host noip filter reset
+expect_not "unblocked"
+expect "I: host noip: profile Standard"
+# blocked in the home network, profiles do not help
+run 0 host dupip filter
+expect "internet ipconflict"
+run 1 host dupip filter allow
+expect "IP address is already in use"
+run 1 host 192.168.178.20 filter
+expect "is ambiguous (2 hosts)"
+
 # "host list" options win over host names
 run 0 h wifi f
 expect_not "laptop"

@@ -203,18 +203,23 @@ function host.filter(argv, i)
   local settings, err = FB.host.get(FBhandle, h.UID)
   DieOnErr(err)
   local vars = settings.data.vars
-  local form, err = FB.host.form(vars)
-  DieOnErr(err)
-  local profiles = vars.dev.netAccess.kisi.profiles
+  local profiles = (((vars.dev.netAccess or {}).kisi or {}).profiles) or {}
 
   if op == "show" then
-    print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, form.kisi_profile), form.internetdetail))
+    print(string.format("%s profile %s internet %s", h.name, profile_name(profiles, profiles.selected), FB.host.internet(vars)))
     return nil, nil
   end
 
+  local form, err = FB.host.form(vars)
+  DieOnErr(err)
+
   -- leave a blocked host, keep "prioritised"
   if form.internetdetail == "blocked" then
-    form.internetdetail = "unlimited"
+    if vars.dev.realtime and vars.dev.realtime.state then
+      form.internetdetail = "realtime"
+    else
+      form.internetdetail = "unlimited"
+    end
   end
 
   local profile = profile_find(profiles, filter_profiles[op])
@@ -228,11 +233,27 @@ function host.filter(argv, i)
 
   local _, err = FB.host.set(FBhandle, h.UID, form)
   DieOnErr(err)
+
   if form.internetdetail == "blocked" then
     print(string.format("I: host %s: internet usage blocked", h.name))
-  else
-    print(string.format("I: host %s: profile %s", h.name, profile_name(profiles, form.kisi_profile)))
+    return nil, nil
   end
+
+  -- the device lock of the parental control list is not lifted by the
+  -- edit device page, check and unlock
+  settings, err = FB.host.get(FBhandle, h.UID)
+  DieOnErr(err)
+  if FB.host.internet(settings.data.vars) == "blocked" then
+    local _, err = FB.host.lock(FBhandle, h.UID, false)
+    DieOnErr(err)
+    settings, err = FB.host.get(FBhandle, h.UID)
+    DieOnErr(err)
+    if FB.host.internet(settings.data.vars) == "blocked" then
+      return nil, { exitcode = 1, errmsg = string.format("host %s: profile set, but its internet access is still blocked", h.name) }
+    end
+    print(string.format("I: host %s: unblocked", h.name))
+  end
+  print(string.format("I: host %s: profile %s", h.name, profile_name(profiles, form.kisi_profile)))
   return nil, nil
 end
 

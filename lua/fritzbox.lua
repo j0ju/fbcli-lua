@@ -100,10 +100,10 @@ function fb.login(user, pw, url)
 end
 
 -- Helper:
---   fetches a page of data.lua
-local fb_POST_json_data_lua = function(fbhandle, page, args)
+--   fetches a page of data.lua, returns the reply body
+local fb_POST_data_lua = function(fbhandle, page, args)
   if fb.verbose then
-    PStdErr("I: fb_POST_json_data_lua(page = '".. page .."', [...])")
+    PStdErr("I: fb_POST_data_lua(page = '".. page .."', [...])")
   end
   if args == nil then
     args = {}
@@ -133,17 +133,26 @@ local fb_POST_json_data_lua = function(fbhandle, page, args)
     return nil, { errmsg = string.format("HTTP call to %s (%s) failed: %s", url, page, tostring(code)), exitcode = 1 }
   end
   if fb.verbose then
-    PStdErr("I: fb_POST_json_data_lua: HTTP status: ".. code)
+    PStdErr("I: fb_POST_data_lua: HTTP status: ".. code)
   end
   if not (code == 200) then
     local err = { code = code, exitcode = 1, errmsg = string.format("HTTP call to %s (%s) unsuccessful %s. Check credentials!", url, page, tostring(code)) }
     if fb.verbose then
-      PStdErr("E: fb_POST_json_data_lua: ".. err.errmsg)
+      PStdErr("E: fb_POST_data_lua: ".. err.errmsg)
     end
     return nil, err
   end
+  return table.concat(resp), nil
+end
 
-  local body = table.concat(resp)
+-- Helper:
+--   fetches a page of data.lua, returns the decoded JSON reply
+local fb_POST_json_data_lua = function(fbhandle, page, args)
+  local body, err = fb_POST_data_lua(fbhandle, page, args)
+  if err then
+    return nil, err
+  end
+  local url = fbhandle.url .. "/data.lua"
   local ok, data = pcall(JSON.decode, JSON, body)
   if not ok or data == nil then
     return nil, { exitcode = 1, errmsg = string.format("cannot decode JSON reply of %s (%s): %s", url, page, tostring(data)) }
@@ -529,6 +538,9 @@ function fb.host.form(vars)
   end
 
   -- internet usage: "unlimited" (by profile), "realtime" (prioritised) or "blocked"
+  if kisi.showWarning then
+    return nil, { exitcode = 1, errmsg = string.format("host %s is blocked in the home network, its IP address is already in use; assign another IP address", name) }
+  end
   if (kisi.selectedRights or {}).msgid == "blocked" then
     form.internetdetail = "blocked"
   elseif dev.realtime and dev.realtime.state then
@@ -576,6 +588,37 @@ function fb.host.form(vars)
     form.auto_wakeup = onoff(dev.wakeOnLan.checked)
   end
   return form, nil
+end
+
+-- internet usage of a host from the settings of fb.host.get:
+--   "unlimited", "realtime" (prioritised), "blocked" (internet usage blocked
+--   or device lock of the parental control list) or "ipconflict" (blocked in
+--   the home network, IP address already in use)
+function fb.host.internet(vars)
+  local dev = vars.dev
+  local kisi = (dev.netAccess or {}).kisi or {}
+  if kisi.showWarning then
+    return "ipconflict"
+  elseif (kisi.selectedRights or {}).msgid == "blocked" or kisi.isDeviceBlocked then
+    return "blocked"
+  elseif dev.realtime and dev.realtime.state then
+    return "realtime"
+  end
+  return "unlimited"
+end
+
+-- (un)locks the internet access of a host, the device lock of the parental
+-- control list ("Internetzugang sperren und entsperren", page kidLis).
+-- The request is taken from the page's JS (newval.submit), it is not in the
+-- captures yet; the reply is HTML, check the result with fb.host.get.
+function fb.host.lock(fbhandle, landevice, blocked)
+  local args = {
+    xhr="1",
+    toBeBlocked=landevice,
+    blocked=tostring(blocked == true),
+  }
+  local _, err = fb_POST_data_lua(fbhandle, "kidLis", args)
+  return (err == nil), err
 end
 
 -- saves the settings of a host, "form" from fb.host.form

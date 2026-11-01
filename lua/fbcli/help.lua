@@ -61,7 +61,7 @@ return function()
                     online, port (default: ipv4)
 
   * host HOST filter - set the access profile of HOST (name, MAC or IPv4)
-    - allow       - profile "Unbeschränkt"
+    - allow       - profile "Unbeschränkt", unblocks the host
     - disallow    - profile "Gesperrt", or block internet usage if there is
                     no such profile
     - reset       - profile "Standard", unblocks the host

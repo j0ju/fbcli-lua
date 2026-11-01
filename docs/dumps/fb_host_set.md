@@ -24,7 +24,10 @@ Access profile ("Zugangsprofil") related parts:
                "selected": "filtprof1"}}}
 ```
 
-`selectedRights.msgid` is `blocked` if internet usage of the device is blocked.
+`selectedRights.msgid` is `blocked` if internet usage of the device is blocked,
+`isDeviceBlocked` is set for the device lock of the parental control list (see below),
+`showWarning` if the device is blocked in the home network (IP address already in use,
+the page then shows no internet usage settings at all).
 `page=kidPro` (see `fb_list_Zugangsprofile.md`) also lists `filtprof2` ("Gast").
 There is no "Gesperrt" profile on this FRITZ!OS, blocking is a device setting.
 
@@ -50,6 +53,20 @@ Reply: `{"data": {"redirect": {"back": true}, "apply": "ok"}}`
   `dev_ip*` (`ipv4.show`, `ipv4.editable`), `static_dhcp` (`ipv4.dhcp.show`),
   `interface_id1..4` (`ipv6.iface.show`), `auto_wakeup` (`wakeOnLan.show`),
   `connection_assignment` (`netAccess.connectionAssignment.show`)
+* the device lock is not part of this form, see below
 * Powerline adapters (`plc_desc` instead of `dev_name`, `plc_*`, `led`, `greenmode`,
   `netpwd`, `tr069_option`) and devices with VPN users (`vpn_active`) have more
   fields, `fb.host.form()` refuses those.
+
+## Device lock (page `kidLis`, not captured yet)
+
+Internet > Filter > Kindersicherung, "Internetzugang sperren und entsperren".
+From the JS of `page=kidLis` (`fb_list_Zugangsprofile.pcap.zst`):
+
+```js
+newval.submit({ name: "toBeBlocked", value: <landevice UID> }, { blocked: <true|false> })
+```
+
+fbcli sends `xhr=1&toBeBlocked=landeviceN&blocked=false&page=kidLis` and checks the
+result via `page=edit_device` (`isDeviceBlocked`). The reply is the HTML page.
+A capture of (un)locking a device would confirm the request.

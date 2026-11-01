@@ -40,6 +40,8 @@ hosts = {
              port="", UID="landevice2", model="passive"),
         dict(name="noip", mac="AA:00:00:00:00:03",
              port="LAN 1 mit 1 Gbit/s ", UID="landevice3", model="passive"),
+        dict(name="dupip", mac="AA:00:00:00:00:06", ipv4=dict(ip="192.168.178.20"),
+             port="", UID="landevice6", model="passive"),
     ],
     "fbox": [
         dict(name="fritz.box", mac="AA:00:00:00:00:00", ipv4=dict(ip="192.168.178.1"),
@@ -59,12 +61,18 @@ profiles = [
 # older FRITZ!OS has a profile "Gesperrt", newer ones block the device instead;
 # only "kid" sees it, to test both variants with one fake box
 profiles_kid = profiles + [dict(value="filtprof4", text="Gesperrt")]
+# blocked: "Internetnutzung gesperrt" on the edit device page
+# locked:   device lock of the parental control list (page kidLis), only
+#           visible as isDeviceBlocked, not lifted by the edit device page
+# ipconflict: blocked in the home network, IP address already in use
 settings = {
-    uid: dict(profile="filtprof1", blocked=False, realtime=False, static_dhcp=False,
-              allow_forwarding=False, auto_wakeup=False)
-    for uid in ("landevice1", "landevice2", "landevice3", "landevice4", "landevice5")
+    uid: dict(profile="filtprof1", blocked=False, locked=False, ipconflict=False, realtime=False,
+              static_dhcp=False, allow_forwarding=False, auto_wakeup=False)
+    for uid in ("landevice1", "landevice2", "landevice3", "landevice4", "landevice5", "landevice6")
 }
 settings["landevice1"]["static_dhcp"] = True
+settings["landevice3"].update(locked=True, realtime=True)
+settings["landevice6"]["ipconflict"] = True
 # fields the web interface always sends for a plain host
 required_fields = ["dev_name", "internetdetail", "allow_pcp_and_upnp", "dev_ip0", "dev_ip1", "dev_ip2",
                    "dev_ip3", "dev_ip", "static_dhcp", "interface_id1", "interface_id2", "interface_id3",
@@ -95,7 +103,8 @@ def edit_device_vars(uid):
                  "portForwarding": {"show": True, "allowForwarding": st["allow_forwarding"]}},
         "ipv6": {"show": True, "iface": {"show": True, "ifaceid": "::48cd:3fda:825b:6b38"}},
         "netAccess": {"show": True, "connectionAssignment": [],
-                      "kisi": {"show": True, "selectedRights": rights, "isDeviceBlocked": st["blocked"],
+                      "kisi": {"show": True, "selectedRights": rights, "showWarning": st["ipconflict"],
+                               "isDeviceBlocked": st["blocked"] or st["locked"],
                                "profiles": {"list": plist, "selected": st["profile"]}}},
     }
     if h["name"] == "adapter":
@@ -200,6 +209,11 @@ class Handler(BaseHTTPRequestHandler):
             if f.get("dev") not in settings:
                 return self.reply(json.dumps({"data": {}}))
             return self.reply(json.dumps({"pid": "edit_device", "data": {"vars": edit_device_vars(f["dev"])}}))
+        if page == "kidLis":
+            uid = f.get("toBeBlocked")
+            if uid in settings:
+                settings[uid]["locked"] = f.get("blocked") == "true"
+            return self.reply("<html><body>kidLis</body></html>", "text/html")
         if page == "netMoni":
             return self.reply(json.dumps({"data": {"connections": [{"name": "internet", "connected": True}]}}))
         self.reply("{}", code=404)

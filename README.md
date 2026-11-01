@@ -147,11 +147,17 @@ Active hosts cannot be deleted.
 Sets the access profile ("Zugangsprofil", Internet > Filter > Kindersicherung) of a host.
 `HOST` is a host name, MAC or IPv4 address, as shown by `host list`.
 
- * `allow` - access profile "Unbeschränkt"
+ * `allow` - access profile "Unbeschränkt", unblocks the host
  * `disallow` - access profile "Gesperrt"; FRITZ!OS versions without such a profile
    block the internet usage of the host instead ("Internetnutzung gesperrt")
- * `reset` - access profile "Standard", also unblocks the host
- * `show` (default) - shows profile and internet usage (`unlimited`, `realtime`, `blocked`)
+ * `reset` - access profile "Standard", unblocks the host
+ * `show` (default) - shows profile and internet usage (`unlimited`, `realtime`,
+   `blocked`, `ipconflict`)
+
+Unblocking lifts "Internetnutzung gesperrt" of the host and the device lock of the
+parental control list ("Internetzugang sperren und entsperren"), a prioritised host
+stays prioritised. Hosts blocked because their IP address is already in use
+(`ipconflict`) need another IP address first.
 
 Only plain hosts are supported, Powerline adapters and hosts with VPN settings are refused,
 as the FritzBox expects all settings of the edit device page to be sent.
