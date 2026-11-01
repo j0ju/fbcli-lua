@@ -21,7 +21,7 @@ function route.show()
     os.exit(1)
   else
     table.sort(routes, route_sort)
-    local i = 1, r
+    local i, r = 1, nil
     while routes[i] do
       r = routes[i]
       print(string.format("%s via %s name %s active %s", r.prefix, r.via, r.name, r.active))
@@ -38,11 +38,12 @@ function route.add(argv, i)
     via = "",
     active = "1",
   }
-  CLI.parse_into_table(r, argv, i)
+  local _, err = CLI.parse_into_table(r, argv, i)
+  DieOnErr(err)
   if r.prefix == "" then
     return nil, { exitcode = 1, errmsg = "no prefix given" }
   end
-  if r.prefix == "" then
+  if r.via == "" then
     return nil, { exitcode = 1, errmsg = "no via given" }
   end
   local rs, err = FB.route.add(FBhandle, r)
@@ -57,7 +58,8 @@ function route.delete(argv, i)
     name = "",
     active = "",
   }
-  CLI.parse_into_table(r, argv, i)
+  local _, err = CLI.parse_into_table(r, argv, i)
+  DieOnErr(err)
   if r.prefix == "" then
     return nil, { exitcode = 1, errmsg = "no prefix given" }
   end
@@ -68,7 +70,8 @@ end
 
 function route.flush(argv, i)
   repeat
-    local routes, rs, err = FB.route.list(FBhandle)
+    local routes, err = FB.route.list(FBhandle)
+    local rs
     DieOnErr(err)
 
     local v=nil
